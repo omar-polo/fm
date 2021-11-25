@@ -4,21 +4,21 @@ MANPREFIX=$(PREFIX)/man
 BINDIR=$(DESTDIR)$(PREFIX)/bin
 MANDIR=$(DESTDIR)$(MANPREFIX)/man1
 
-all: rover
+all: fm
 
-rover: rover.c config.h
+fm: fm.c config.h
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS)
 
-install: rover
-	rm -f $(BINDIR)/rover
+install: fm
+	rm -f $(BINDIR)/fm
 	mkdir -p $(BINDIR)
-	cp rover $(BINDIR)/rover
+	cp fm $(BINDIR)/fm
 	mkdir -p $(MANDIR)
-	cp rover.1 $(MANDIR)/rover.1
+	cp fm.1 $(MANDIR)/fm.1
 
 uninstall:
-	rm -f $(BINDIR)/rover
-	rm -f $(MANDIR)/rover.1
+	rm -f $(BINDIR)/fm
+	rm -f $(MANDIR)/fm.1
 
 clean:
-	rm -f rover
+	rm -f fm
