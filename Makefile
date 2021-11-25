@@ -1,20 +1,25 @@
-LDLIBS=-lncursesw
-PREFIX=/usr/local
-MANPREFIX=$(PREFIX)/man
-BINDIR=$(DESTDIR)$(PREFIX)/bin
-MANDIR=$(DESTDIR)$(MANPREFIX)/man1
+LDLIBS =		-lncursesw
+PREFIX =		/usr/local
+MANPREFIX =		${PREFIX}/man
+BINDIR =		${DESTDIR}${PREFIX}/bin
+MANDIR =		${DESTDIR}${MANPREFIX}/man1
+
+INSTALL =		install
+INSTALL_PROGRAM =	${INSTALL} -m 0555
+INSTALL_MAN =		${INSTALL} -m 0444
 
 all: fm
 
-fm: fm.c config.h
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS)
+fm: fm.o
+	${CC} ${CFLAGS} -o $@ fm.o ${LDFLAGS} ${LDLIBS}
+
+fm.o: fm.c config.h
 
 install: fm
-	rm -f $(BINDIR)/fm
-	mkdir -p $(BINDIR)
-	cp fm $(BINDIR)/fm
-	mkdir -p $(MANDIR)
-	cp fm.1 $(MANDIR)/fm.1
+	mkdir -p ${BINDIR}
+	${INSTALL_PROGRAM} fm ${BINDIR}/fm
+	mkdir -p ${MANDIR}
+	${INSTALL_MAN} fm.1 ${MANDIR}/fm.1
 
 uninstall:
 	rm -f $(BINDIR)/fm
