@@ -198,7 +198,7 @@ init_marks(struct marks *marks)
 	strcpy(marks->dirpath, "");
 	marks->bulk = BULK_INIT;
 	marks->nentries = 0;
-	marks->entries = xcalloc(marks->bulk, sizeof *marks->entries);
+	marks->entries = xcalloc(marks->bulk, sizeof(*marks->entries));
 }
 
 /* Unmark all entries. */
@@ -218,7 +218,7 @@ mark_none(struct marks *marks)
 	        /* Reset bulk to free some memory. */
 		free(marks->entries);
 		marks->bulk = BULK_INIT;
-		marks->entries = xcalloc(marks->bulk, sizeof *marks->entries);
+		marks->entries = xcalloc(marks->bulk, sizeof(*marks->entries));
 	}
 }
 
@@ -234,9 +234,9 @@ add_mark(struct marks *marks, char *dirpath, char *entry)
 			int extra = marks->bulk / 2;
 			marks->bulk += extra; /* bulk *= 1.5; */
 			marks->entries = xrealloc(marks->entries,
-			    marks->bulk * sizeof *marks->entries);
+			    marks->bulk * sizeof(*marks->entries));
 			memset(&marks->entries[marks->nentries], 0,
-			    extra * sizeof *marks->entries);
+			    extra * sizeof(*marks->entries));
 			i = marks->nentries;
 		} else {
 			/* Search for empty slot (there must be one). */
@@ -667,7 +667,7 @@ ls(struct row **rowsp, uint8_t flags)
 		return 0;
 	}
 	rewinddir(dp);
-	rows = xmalloc(n * sizeof *rows);
+	rows = xmalloc(n * sizeof(*rows));
 	i = 0;
 	while ((ep = readdir(dp))) {
 		if (!strcmp(ep->d_name, ".") || !strcmp(ep->d_name, ".."))
