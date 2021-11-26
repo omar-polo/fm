@@ -2,6 +2,8 @@
 #define _XOPEN_SOURCE_EXTENDED
 #define _FILE_OFFSET_BITS   64
 
+#include <err.h>
+#include <getopt.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
@@ -24,6 +26,12 @@
 #include <curses.h>
 
 #include "config.h"
+
+struct option opts[] = {
+	{"help",	no_argument,	NULL,	'h'},
+	{"version",	no_argument,	NULL,	'v'},
+	{NULL,		0,		NULL,	0}
+};
 
 /*
  * This signal is not defined by POSIX, but should be present on all
@@ -1097,46 +1105,30 @@ main(int argc, char *argv[])
 	FILE *save_marks_file = NULL;
 	FILE *clip_file;
 
-	if (argc >= 2) {
-		if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
-			printf("rover %s\n", RV_VERSION);
+	while ((ch = getopt_long(argc, argv, "d:hm:v", opts, NULL)) != -1) {
+		switch (ch) {
+		case 'd':
+			if ((save_cwd_file = fopen(optarg, "w")) == NULL)
+				err(1, "open %s", optarg);
+			break;
+		case 'h':
+                        printf(""
+			    "Usage: fm [-hv] [-d file] [-m file] [dirs...]\n"
+			    "Browse current directory or the ones specified.\n"
+			    "\n"
+			    "See fm(1) for more information.\n"
+			    "fm homepage <https://github.com/omar-polo/fm>\n");
 			return 0;
-		} else if (!strcmp(argv[1], "-h") ||
-		    !strcmp(argv[1], "--help")) {
-			printf(
-				"Usage: rover [OPTIONS] [DIR [DIR [...]]]\n"
-				"       Browse current directory or the ones specified.\n\n"
-				"  or:  rover -h|--help\n"
-				"       Print this help message and exit.\n\n"
-				"  or:  rover -v|--version\n"
-				"       Print program version and exit.\n\n"
-				"See rover(1) for more information.\n"
-				"Rover homepage: <https://github.com/lecram/rover>.\n");
+		case 'm':
+			if ((save_marks_file = fopen(optarg, "a")) == NULL)
+				err(1, "open %s", optarg);
+			break;
+		case 'v':
+			printf("version: fm %s\n", RV_VERSION);
 			return 0;
-		} else if (!strcmp(argv[1], "-d") ||
-		    !strcmp(argv[1], "--save-cwd")) {
-			if (argc > 2) {
-				save_cwd_file = fopen(argv[2], "w");
-				argc -= 2;
-				argv += 2;
-			} else {
-				fprintf(stderr,
-				    "error: missing argument to %s\n", argv[1]);
-				return 1;
-			}
-		} else if (!strcmp(argv[1], "-m") ||
-		    !strcmp(argv[1], "--save-marks")) {
-			if (argc > 2) {
-				save_marks_file = fopen(argv[2], "a");
-				argc -= 2;
-				argv += 2;
-			} else {
-				fprintf(stderr,
-				    "error: missing argument to %s\n", argv[1]);
-				return 1;
-			}
 		}
 	}
+
 	get_user_programs();
 	init_term();
 	rover.nfiles = 0;
