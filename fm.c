@@ -99,7 +99,7 @@ struct prog {
 };
 
 /* Global state. */
-static struct Rover {
+static struct state {
 	int tab;
 	int nfiles;
 	struct row *rows;
@@ -111,18 +111,18 @@ static struct Rover {
 	volatile sig_atomic_t pending_winch;
 	struct prog prog;
 	struct tab tabs[10];
-} rover;
+} fm;
 
 /* Macros for accessing global state. */
-#define ENAME(I)    rover.rows[I].name
-#define ESIZE(I)    rover.rows[I].size
-#define EMODE(I)    rover.rows[I].mode
-#define ISLINK(I)   rover.rows[I].islink
-#define MARKED(I)   rover.rows[I].marked
-#define SCROLL      rover.tabs[rover.tab].scroll
-#define ESEL        rover.tabs[rover.tab].esel
-#define FLAGS       rover.tabs[rover.tab].flags
-#define CWD         rover.tabs[rover.tab].cwd
+#define ENAME(I)    fm.rows[I].name
+#define ESIZE(I)    fm.rows[I].size
+#define EMODE(I)    fm.rows[I].mode
+#define ISLINK(I)   fm.rows[I].islink
+#define MARKED(I)   fm.rows[I].marked
+#define SCROLL      fm.tabs[fm.tab].scroll
+#define ESEL        fm.tabs[fm.tab].esel
+#define FLAGS       fm.tabs[fm.tab].flags
+#define CWD         fm.tabs[fm.tab].cwd
 
 /* Helpers. */
 #define MIN(A, B)   ((A) < (B) ? (A) : (B))
@@ -240,13 +240,13 @@ free_marks(struct marks *marks)
 static void
 handle_usr1(int sig)
 {
-	rover.pending_usr1 = 1;
+	fm.pending_usr1 = 1;
 }
 
 static void
 handle_winch(int sig)
 {
-	rover.pending_winch = 1;
+	fm.pending_winch = 1;
 }
 
 static void
@@ -279,22 +279,22 @@ static void update_view();
 static void
 sync_signals()
 {
-	if (rover.pending_usr1) {
+	if (fm.pending_usr1) {
 		/* SIGUSR1 received: refresh directory listing. */
 		reload();
-		rover.pending_usr1 = 0;
+		fm.pending_usr1 = 0;
 	}
-	if (rover.pending_winch) {
+	if (fm.pending_winch) {
 		/* SIGWINCH received: resize application accordingly. */
-		delwin(rover.window);
+		delwin(fm.window);
 		endwin();
 		refresh();
 		clear();
-		rover.window = subwin(stdscr, LINES - 2, COLS, 1, 0);
-		if (HEIGHT < rover.nfiles && SCROLL + HEIGHT > rover.nfiles)
+		fm.window = subwin(stdscr, LINES - 2, COLS, 1, 0);
+		if (HEIGHT < fm.nfiles && SCROLL + HEIGHT > fm.nfiles)
 			SCROLL = ESEL - HEIGHT;
 		update_view();
-		rover.pending_winch = 0;
+		fm.pending_winch = 0;
 	}
 }
 
@@ -303,7 +303,7 @@ sync_signals()
  * while waiting for user input.
  */
 static int
-rover_getch()
+fm_getch()
 {
 	int ch;
 
@@ -317,7 +317,7 @@ rover_getch()
  * signals while waiting for user input.
  */
 static int
-rover_get_wch(wint_t *wch)
+fm_get_wch(wint_t *wch)
 {
 	wint_t ret;
 
@@ -328,18 +328,18 @@ rover_get_wch(wint_t *wch)
 
 /* Get user programs from the environment. */
 
-#define ROVER_ENV(dst, src) if ((dst = getenv("ROVER_" #src)) == NULL)	\
+#define FM_ENV(dst, src) if ((dst = getenv("FM_" #src)) == NULL)	\
 		dst = getenv(#src);
 
 static void
 get_user_programs()
 {
-	ROVER_ENV(user_shell, SHELL);
-	ROVER_ENV(user_pager, PAGER);
-	ROVER_ENV(user_editor, VISUAL);
+	FM_ENV(user_shell, SHELL);
+	FM_ENV(user_pager, PAGER);
+	FM_ENV(user_editor, VISUAL);
 	if (!user_editor)
-		ROVER_ENV(user_editor, EDITOR);
-	ROVER_ENV(user_open, OPEN);
+		FM_ENV(user_editor, EDITOR);
+	FM_ENV(user_open, OPEN);
 }
 
 /* Do a fork-exec to external program (e.g. $EDITOR). */
@@ -349,7 +349,7 @@ spawn(char **args)
 	pid_t pid;
 	int status;
 
-	setenv("RVSEL", rover.nfiles ? ENAME(ESEL) : "", 1);
+	setenv("RVSEL", fm.nfiles ? ENAME(ESEL) : "", 1);
 	pid = fork();
 	if (pid > 0) {
 		/* fork() succeeded. */
@@ -453,10 +453,10 @@ update_view()
 	mvhline(0, 0, ' ', COLS);
 	attr_on(A_BOLD, NULL);
 	color_set(RVC_TABNUM, NULL);
-	mvaddch(0, COLS - 2, rover.tab + '0');
+	mvaddch(0, COLS - 2, fm.tab + '0');
 	attr_off(A_BOLD, NULL);
-	if (rover.marks.nentries) {
-		numsize = snprintf(BUF1, BUFLEN, "%d", rover.marks.nentries);
+	if (fm.marks.nentries) {
+		numsize = snprintf(BUF1, BUFLEN, "%d", fm.marks.nentries);
 		color_set(RVC_MARKS, NULL);
 		mvaddstr(0, COLS - 3 - numsize, BUF1);
 	} else
@@ -464,44 +464,44 @@ update_view()
 	color_set(RVC_CWD, NULL);
 	mbstowcs(WBUF, CWD, PATH_MAX);
 	mvaddnwstr(0, 0, WBUF, COLS - 4 - numsize);
-	wcolor_set(rover.window, RVC_BORDER, NULL);
-	wborder(rover.window, 0, 0, 0, 0, 0, 0, 0, 0);
-	ESEL = MAX(MIN(ESEL, rover.nfiles - 1), 0);
+	wcolor_set(fm.window, RVC_BORDER, NULL);
+	wborder(fm.window, 0, 0, 0, 0, 0, 0, 0, 0);
+	ESEL = MAX(MIN(ESEL, fm.nfiles - 1), 0);
 
 	/*
 	 * Selection might not be visible, due to cursor wrapping or
 	 * window shrinking. In that case, the scroll must be moved to
 	 * make it visible.
 	 */
-	if (rover.nfiles > HEIGHT) {
+	if (fm.nfiles > HEIGHT) {
 		SCROLL = MAX(MIN(SCROLL, ESEL), ESEL - HEIGHT + 1);
-		SCROLL = MIN(MAX(SCROLL, 0), rover.nfiles - HEIGHT);
+		SCROLL = MIN(MAX(SCROLL, 0), fm.nfiles - HEIGHT);
 	} else
 		SCROLL = 0;
-	marking = !strcmp(CWD, rover.marks.dirpath);
-	for (i = 0, j = SCROLL; i < HEIGHT && j < rover.nfiles; i++, j++) {
+	marking = !strcmp(CWD, fm.marks.dirpath);
+	for (i = 0, j = SCROLL; i < HEIGHT && j < fm.nfiles; i++, j++) {
 		ishidden = ENAME(j)[0] == '.';
 		if (j == ESEL)
-			wattr_on(rover.window, A_REVERSE, NULL);
+			wattr_on(fm.window, A_REVERSE, NULL);
 		if (ISLINK(j))
-			wcolor_set(rover.window, RVC_LINK, NULL);
+			wcolor_set(fm.window, RVC_LINK, NULL);
 		else if (ishidden)
-			wcolor_set(rover.window, RVC_HIDDEN, NULL);
+			wcolor_set(fm.window, RVC_HIDDEN, NULL);
 		else if (S_ISREG(EMODE(j))) {
 			if (EMODE(j) & (S_IXUSR | S_IXGRP | S_IXOTH))
-				wcolor_set(rover.window, RVC_EXEC, NULL);
+				wcolor_set(fm.window, RVC_EXEC, NULL);
 			else
-				wcolor_set(rover.window, RVC_REG, NULL);
+				wcolor_set(fm.window, RVC_REG, NULL);
 		} else if (S_ISDIR(EMODE(j)))
-			wcolor_set(rover.window, RVC_DIR, NULL);
+			wcolor_set(fm.window, RVC_DIR, NULL);
 		else if (S_ISCHR(EMODE(j)))
-			wcolor_set(rover.window, RVC_CHR, NULL);
+			wcolor_set(fm.window, RVC_CHR, NULL);
 		else if (S_ISBLK(EMODE(j)))
-			wcolor_set(rover.window, RVC_BLK, NULL);
+			wcolor_set(fm.window, RVC_BLK, NULL);
 		else if (S_ISFIFO(EMODE(j)))
-			wcolor_set(rover.window, RVC_FIFO, NULL);
+			wcolor_set(fm.window, RVC_FIFO, NULL);
 		else if (S_ISSOCK(EMODE(j)))
-			wcolor_set(rover.window, RVC_SOCK, NULL);
+			wcolor_set(fm.window, RVC_SOCK, NULL);
 		if (S_ISDIR(EMODE(j))) {
 			mbstowcs(WBUF, ENAME(j), PATH_MAX);
 			if (ISLINK(j))
@@ -525,39 +525,39 @@ update_view()
 				    (int)human_size / 10,
 				    (int)human_size % 10, *suffix);
 		}
-		mvwhline(rover.window, i + 1, 1, ' ', COLS - 2);
-		mvwaddnwstr(rover.window, i + 1, 2, WBUF, COLS - 4);
+		mvwhline(fm.window, i + 1, 1, ' ', COLS - 2);
+		mvwaddnwstr(fm.window, i + 1, 2, WBUF, COLS - 4);
 		if (marking && MARKED(j)) {
-			wcolor_set(rover.window, RVC_MARKS, NULL);
-			mvwaddch(rover.window, i + 1, 1, RVS_MARK);
+			wcolor_set(fm.window, RVC_MARKS, NULL);
+			mvwaddch(fm.window, i + 1, 1, RVS_MARK);
 		} else
-			mvwaddch(rover.window, i + 1, 1, ' ');
+			mvwaddch(fm.window, i + 1, 1, ' ');
 		if (j == ESEL)
-			wattr_off(rover.window, A_REVERSE, NULL);
+			wattr_off(fm.window, A_REVERSE, NULL);
 	}
 	for (; i < HEIGHT; i++)
-		mvwhline(rover.window, i + 1, 1, ' ', COLS - 2);
-	if (rover.nfiles > HEIGHT) {
+		mvwhline(fm.window, i + 1, 1, ' ', COLS - 2);
+	if (fm.nfiles > HEIGHT) {
 		int center, height;
-		center = (SCROLL + HEIGHT / 2) * HEIGHT / rover.nfiles;
-		height = (HEIGHT - 1) * HEIGHT / rover.nfiles;
+		center = (SCROLL + HEIGHT / 2) * HEIGHT / fm.nfiles;
+		height = (HEIGHT - 1) * HEIGHT / fm.nfiles;
 		if (!height)
 			height = 1;
-		wcolor_set(rover.window, RVC_SCROLLBAR, NULL);
-		mvwvline(rover.window, center - height/2 + 1, COLS - 1,
+		wcolor_set(fm.window, RVC_SCROLLBAR, NULL);
+		mvwvline(fm.window, center - height/2 + 1, COLS - 1,
 		    RVS_SCROLLBAR, height);
 	}
 	BUF1[0] = FLAGS & SHOW_FILES ? 'F' : ' ';
 	BUF1[1] = FLAGS & SHOW_DIRS ? 'D' : ' ';
 	BUF1[2] = FLAGS & SHOW_HIDDEN ? 'H' : ' ';
-	if (!rover.nfiles)
+	if (!fm.nfiles)
 		strcpy(BUF2, "0/0");
 	else
-		snprintf(BUF2, BUFLEN, "%d/%d", ESEL + 1, rover.nfiles);
+		snprintf(BUF2, BUFLEN, "%d/%d", ESEL + 1, fm.nfiles);
 	snprintf(BUF1 + 3, BUFLEN - 3, "%12s", BUF2);
 	color_set(RVC_STATUS, NULL);
 	mvaddstr(LINES - 1, STATUSPOS, BUF1);
-	wrefresh(rover.window);
+	wrefresh(fm.window);
 }
 
 /* Show a message on the status bar. */
@@ -680,19 +680,19 @@ cd(int reset)
 	}
 	if (reset)
 		ESEL = SCROLL = 0;
-	if (rover.nfiles)
-		free_rows(&rover.rows, rover.nfiles);
-	rover.nfiles = ls(&rover.rows, FLAGS);
-	if (!strcmp(CWD, rover.marks.dirpath)) {
-		for (i = 0; i < rover.nfiles; i++) {
-			for (j = 0; j < rover.marks.bulk; j++)
-				if (rover.marks.entries[j] &&
-				    !strcmp(rover.marks.entries[j], ENAME(i)))
+	if (fm.nfiles)
+		free_rows(&fm.rows, fm.nfiles);
+	fm.nfiles = ls(&fm.rows, FLAGS);
+	if (!strcmp(CWD, fm.marks.dirpath)) {
+		for (i = 0; i < fm.nfiles; i++) {
+			for (j = 0; j < fm.marks.bulk; j++)
+				if (fm.marks.entries[j] &&
+				    !strcmp(fm.marks.entries[j], ENAME(i)))
 					break;
-			MARKED(i) = j < rover.marks.bulk;
+			MARKED(i) = j < fm.marks.bulk;
 		}
 	} else
-		for (i = 0; i < rover.nfiles; i++)
+		for (i = 0; i < fm.nfiles; i++)
 			MARKED(i) = 0;
 done:
 	clear_message();
@@ -705,9 +705,9 @@ try_to_sel(const char *target)
 {
 	ESEL = 0;
 	if (!ISDIR(target))
-		while ((ESEL + 1) < rover.nfiles && S_ISDIR(EMODE(ESEL)))
+		while ((ESEL + 1) < fm.nfiles && S_ISDIR(EMODE(ESEL)))
 			ESEL++;
-	while ((ESEL + 1) < rover.nfiles && strcoll(ENAME(ESEL), target) < 0)
+	while ((ESEL + 1) < fm.nfiles && strcoll(ENAME(ESEL), target) < 0)
 		ESEL++;
 }
 
@@ -715,7 +715,7 @@ try_to_sel(const char *target)
 static void
 reload()
 {
-	if (rover.nfiles) {
+	if (fm.nfiles) {
 		strcpy(INPUT, ENAME(ESEL));
 		cd(0);
 		try_to_sel(INPUT);
@@ -760,9 +760,9 @@ count_marked()
 	struct stat statbuf;
 
 	total = 0;
-	chdir(rover.marks.dirpath);
-	for (i = 0; i < rover.marks.bulk; i++) {
-		entry = rover.marks.entries[i];
+	chdir(fm.marks.dirpath);
+	for (i = 0; i < fm.marks.bulk; i++) {
+		entry = fm.marks.entries[i];
 		if (entry) {
 			if (ISDIR(entry)) {
 				total += count_dir(entry);
@@ -802,7 +802,7 @@ process_dir(PROCESS pre, PROCESS proc, PROCESS pos, const char *path)
 	if (pre) {
 		char dstpath[PATH_MAX];
 		strcpy(dstpath, CWD);
-		strcat(dstpath, path + strlen(rover . marks . dirpath));
+		strcat(dstpath, path + strlen(fm . marks . dirpath));
 		ret |= pre(dstpath);
 	}
 	if (!(dp = opendir(path)))
@@ -840,12 +840,12 @@ process_marked(PROCESS pre, PROCESS proc, PROCESS pos, const char *msg_doing,
 	clear_message();
 	message(CYAN, "%s...", msg_doing);
 	refresh();
-	rover.prog = (struct prog){0, count_marked(), msg_doing};
-	for (i = 0; i < rover.marks.bulk; i++) {
-		entry = rover.marks.entries[i];
+	fm.prog = (struct prog){0, count_marked(), msg_doing};
+	for (i = 0; i < fm.marks.bulk; i++) {
+		entry = fm.marks.entries[i];
 		if (entry) {
 			ret = 0;
-			snprintf(path, PATH_MAX, "%s%s", rover.marks.dirpath,
+			snprintf(path, PATH_MAX, "%s%s", fm.marks.dirpath,
 			    entry);
 			if (ISDIR(entry)) {
 				if (!strncmp(path, CWD, strlen(path)))
@@ -855,14 +855,14 @@ process_marked(PROCESS pre, PROCESS proc, PROCESS pos, const char *msg_doing,
 			} else
 				ret = proc(path);
 			if (!ret) {
-				del_mark(&rover.marks, entry);
+				del_mark(&fm.marks, entry);
 				reload();
 			}
 		}
 	}
-	rover.prog.total = 0;
+	fm.prog.total = 0;
 	reload();
-	if (!rover.marks.nentries)
+	if (!fm.marks.nentries)
 		message(GREEN, "%s all marked entries.", msg_done);
 	else
 		message(RED, "Some errors occured while %s.", msg_doing);
@@ -874,11 +874,11 @@ update_progress(off_t delta)
 {
 	int percent;
 
-	if (!rover.prog.total)
+	if (!fm.prog.total)
 		return;
-	rover.prog.partial += delta;
-	percent = (int)(rover.prog.partial * 100 / rover.prog.total);
-	message(CYAN, "%s...%d%%", rover.prog.msg, percent);
+	fm.prog.partial += delta;
+	percent = (int)(fm.prog.partial * 100 / fm.prog.total);
+	message(CYAN, "%s...%d%%", fm.prog.msg, percent);
 	refresh();
 }
 
@@ -919,7 +919,7 @@ cpyfile(const char *srcpath)
 	char dstpath[PATH_MAX];
 
 	strcpy(dstpath, CWD);
-	strcat(dstpath, srcpath + strlen(rover.marks.dirpath));
+	strcat(dstpath, srcpath + strlen(fm.marks.dirpath));
 	ret = lstat(srcpath, &st);
 	if (ret < 0)
 		return ret;
@@ -968,7 +968,7 @@ movfile(const char *srcpath)
 	char dstpath[PATH_MAX];
 
 	strcpy(dstpath, CWD);
-	strcat(dstpath, srcpath + strlen(rover.marks.dirpath));
+	strcat(dstpath, srcpath + strlen(fm.marks.dirpath));
 	ret = rename(srcpath, dstpath);
 	if (ret == 0) {
 		ret = lstat(dstpath, &st);
@@ -989,10 +989,10 @@ start_line_edit(const char *init_input)
 {
 	curs_set(TRUE);
 	strncpy(INPUT, init_input, BUFLEN);
-	rover.edit.left = mbstowcs(rover.edit.buffer, init_input, BUFLEN);
-	rover.edit.right = BUFLEN - 1;
-	rover.edit.buffer[BUFLEN] = L'\0';
-	rover.edit_scroll = 0;
+	fm.edit.left = mbstowcs(fm.edit.buffer, init_input, BUFLEN);
+	fm.edit.right = BUFLEN - 1;
+	fm.edit.buffer[BUFLEN] = L'\0';
+	fm.edit_scroll = 0;
 }
 
 /* Read input and change editing state accordingly. */
@@ -1002,7 +1002,7 @@ get_line_edit()
 	wchar_t eraser, killer, wch;
 	int ret, length;
 
-	ret = rover_get_wch((wint_t *)&wch);
+	ret = fm_get_wch((wint_t *)&wch);
 	erasewchar(&eraser);
 	killwchar(&killer);
 	if (ret == KEY_CODE_YES) {
@@ -1010,23 +1010,23 @@ get_line_edit()
 			curs_set(FALSE);
 			return CONFIRM;
 		} else if (wch == KEY_LEFT) {
-			if (EDIT_CAN_LEFT(rover.edit))
-				EDIT_LEFT(rover.edit);
+			if (EDIT_CAN_LEFT(fm.edit))
+				EDIT_LEFT(fm.edit);
 		} else if (wch == KEY_RIGHT) {
-			if (EDIT_CAN_RIGHT(rover.edit))
-				EDIT_RIGHT(rover.edit);
+			if (EDIT_CAN_RIGHT(fm.edit))
+				EDIT_RIGHT(fm.edit);
 		} else if (wch == KEY_UP) {
-			while (EDIT_CAN_LEFT(rover.edit))
-				EDIT_LEFT(rover.edit);
+			while (EDIT_CAN_LEFT(fm.edit))
+				EDIT_LEFT(fm.edit);
 		} else if (wch == KEY_DOWN) {
-			while (EDIT_CAN_RIGHT(rover.edit))
-				EDIT_RIGHT(rover.edit);
+			while (EDIT_CAN_RIGHT(fm.edit))
+				EDIT_RIGHT(fm.edit);
 		} else if (wch == KEY_BACKSPACE) {
-			if (EDIT_CAN_LEFT(rover.edit))
-				EDIT_BACKSPACE(rover.edit);
+			if (EDIT_CAN_LEFT(fm.edit))
+				EDIT_BACKSPACE(fm.edit);
 		} else if (wch == KEY_DC) {
-			if (EDIT_CAN_RIGHT(rover.edit))
-				EDIT_DELETE(rover.edit);
+			if (EDIT_CAN_RIGHT(fm.edit))
+				EDIT_DELETE(fm.edit);
 		}
 	} else {
 		if (wch == L'\r' || wch == L'\n') {
@@ -1036,20 +1036,20 @@ get_line_edit()
 			curs_set(FALSE);
 			return CANCEL;
 		} else if (wch == eraser) {
-			if (EDIT_CAN_LEFT(rover.edit))
-				EDIT_BACKSPACE(rover.edit);
+			if (EDIT_CAN_LEFT(fm.edit))
+				EDIT_BACKSPACE(fm.edit);
 		} else if (wch == killer) {
-			EDIT_CLEAR(rover.edit);
+			EDIT_CLEAR(fm.edit);
 			clear_message();
 		} else if (iswprint(wch)) {
-			if (!EDIT_FULL(rover.edit))
-				EDIT_INSERT(rover.edit, wch);
+			if (!EDIT_FULL(fm.edit))
+				EDIT_INSERT(fm.edit, wch);
 		}
 	}
 	/* Encode edit contents in INPUT. */
-	rover.edit.buffer[rover.edit.left] = L'\0';
-	length = wcstombs(INPUT, rover.edit.buffer, BUFLEN);
-	wcstombs(&INPUT[length], &rover.edit.buffer[rover.edit.right + 1],
+	fm.edit.buffer[fm.edit.left] = L'\0';
+	length = wcstombs(INPUT, fm.edit.buffer, BUFLEN);
+	wcstombs(&INPUT[length], &fm.edit.buffer[fm.edit.right + 1],
 	    BUFLEN - length);
 	return CONTINUE;
 }
@@ -1063,25 +1063,25 @@ update_input(const char *prompt, Color color)
 	plen = strlen(prompt);
 	ilen = mbstowcs(NULL, INPUT, 0);
 	maxlen = STATUSPOS - plen - 2;
-	if (ilen - rover.edit_scroll < maxlen)
-		rover.edit_scroll = MAX(ilen - maxlen, 0);
-	else if (rover.edit.left > rover.edit_scroll + maxlen - 1)
-		rover.edit_scroll = rover.edit.left - maxlen;
-	else if (rover.edit.left < rover.edit_scroll)
-		rover.edit_scroll = MAX(rover.edit.left - maxlen, 0);
+	if (ilen - fm.edit_scroll < maxlen)
+		fm.edit_scroll = MAX(ilen - maxlen, 0);
+	else if (fm.edit.left > fm.edit_scroll + maxlen - 1)
+		fm.edit_scroll = fm.edit.left - maxlen;
+	else if (fm.edit.left < fm.edit_scroll)
+		fm.edit_scroll = MAX(fm.edit.left - maxlen, 0);
 	color_set(RVC_PROMPT, NULL);
 	mvaddstr(LINES - 1, 0, prompt);
 	color_set(color, NULL);
 	mbstowcs(WBUF, INPUT, COLS);
-	mvaddnwstr(LINES - 1, plen, &WBUF[rover.edit_scroll], maxlen);
-	mvaddch(LINES - 1, plen + MIN(ilen - rover.edit_scroll, maxlen + 1),
+	mvaddnwstr(LINES - 1, plen, &WBUF[fm.edit_scroll], maxlen);
+	mvaddch(LINES - 1, plen + MIN(ilen - fm.edit_scroll, maxlen + 1),
 	    ' ');
 	color_set(DEFAULT, NULL);
-	if (rover.edit_scroll)
+	if (fm.edit_scroll)
 		mvaddch(LINES - 1, plen - 1, '<');
-	if (ilen > rover.edit_scroll + maxlen)
+	if (ilen > fm.edit_scroll + maxlen)
 		mvaddch(LINES - 1, plen + maxlen, '>');
-	move(LINES - 1, plen + rover.edit.left - rover.edit_scroll);
+	move(LINES - 1, plen + fm.edit.left - fm.edit_scroll);
 }
 
 int
@@ -1124,79 +1124,79 @@ main(int argc, char *argv[])
 
 	get_user_programs();
 	init_term();
-	rover.nfiles = 0;
+	fm.nfiles = 0;
 	for (i = 0; i < 10; i++) {
-		rover.tabs[i].esel = rover.tabs[i].scroll = 0;
-		rover.tabs[i].flags = RV_FLAGS;
+		fm.tabs[i].esel = fm.tabs[i].scroll = 0;
+		fm.tabs[i].flags = RV_FLAGS;
 	}
-	strcpy(rover.tabs[0].cwd, getenv("HOME"));
+	strcpy(fm.tabs[0].cwd, getenv("HOME"));
 	for (i = 1; i < argc && i < 10; i++) {
 		if ((d = opendir(argv[i]))) {
-			realpath(argv[i], rover.tabs[i].cwd);
+			realpath(argv[i], fm.tabs[i].cwd);
 			closedir(d);
 		} else
-			strcpy(rover.tabs[i].cwd, rover.tabs[0].cwd);
+			strcpy(fm.tabs[i].cwd, fm.tabs[0].cwd);
 	}
-	getcwd(rover.tabs[i].cwd, PATH_MAX);
+	getcwd(fm.tabs[i].cwd, PATH_MAX);
 	for (i++; i < 10; i++)
-		strcpy(rover.tabs[i].cwd, rover.tabs[i - 1].cwd);
+		strcpy(fm.tabs[i].cwd, fm.tabs[i - 1].cwd);
 	for (i = 0; i < 10; i++)
-		if (rover.tabs[i].cwd[strlen(rover.tabs[i].cwd) - 1] != '/')
-			strcat(rover.tabs[i].cwd, "/");
-	rover.tab = 1;
-	rover.window = subwin(stdscr, LINES - 2, COLS, 1, 0);
-	init_marks(&rover.marks);
+		if (fm.tabs[i].cwd[strlen(fm.tabs[i].cwd) - 1] != '/')
+			strcat(fm.tabs[i].cwd, "/");
+	fm.tab = 1;
+	fm.window = subwin(stdscr, LINES - 2, COLS, 1, 0);
+	init_marks(&fm.marks);
 	cd(1);
 	strcpy(CLIPBOARD, CWD);
-	if (rover.nfiles > 0)
+	if (fm.nfiles > 0)
 		strcat(CLIPBOARD, ENAME(ESEL));
 	while (1) {
-		ch = rover_getch();
+		ch = fm_getch();
 		key = keyname(ch);
 		clear_message();
 		if (!strcmp(key, RVK_QUIT))
 			break;
 		else if (ch >= '0' && ch <= '9') {
-			rover.tab = ch - '0';
+			fm.tab = ch - '0';
 			cd(0);
 		} else if (!strcmp(key, RVK_HELP)) {
-			spawn((char *[]) { "man", "rover", NULL });
+			spawn((char *[]) { "man", "fm", NULL });
 		} else if (!strcmp(key, RVK_DOWN)) {
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
-			ESEL = MIN(ESEL + 1, rover.nfiles - 1);
+			ESEL = MIN(ESEL + 1, fm.nfiles - 1);
 			update_view();
 		} else if (!strcmp(key, RVK_UP)) {
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
 			ESEL = MAX(ESEL - 1, 0);
 			update_view();
 		} else if (!strcmp(key, RVK_JUMP_DOWN)) {
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
-			ESEL = MIN(ESEL + RV_JUMP, rover.nfiles - 1);
-			if (rover.nfiles > HEIGHT)
+			ESEL = MIN(ESEL + RV_JUMP, fm.nfiles - 1);
+			if (fm.nfiles > HEIGHT)
 				SCROLL = MIN(SCROLL + RV_JUMP,
-				    rover.nfiles - HEIGHT);
+				    fm.nfiles - HEIGHT);
 			update_view();
 		} else if (!strcmp(key, RVK_JUMP_UP)) {
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
 			ESEL = MAX(ESEL - RV_JUMP, 0);
 			SCROLL = MAX(SCROLL - RV_JUMP, 0);
 			update_view();
 		} else if (!strcmp(key, RVK_JUMP_TOP)) {
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
 			ESEL = 0;
 			update_view();
 		} else if (!strcmp(key, RVK_JUMP_BOTTOM)) {
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
-			ESEL = rover.nfiles - 1;
+			ESEL = fm.nfiles - 1;
 			update_view();
 		} else if (!strcmp(key, RVK_CD_DOWN)) {
-			if (!rover.nfiles || !S_ISDIR(EMODE(ESEL)))
+			if (!fm.nfiles || !S_ISDIR(EMODE(ESEL)))
 				continue;
 			if (chdir(ENAME(ESEL)) == -1) {
 				message(RED, "Cannot access \"%s\".",
@@ -1218,7 +1218,7 @@ main(int argc, char *argv[])
 			dirname[strlen(dirname)] = '/';
 			try_to_sel(dirname);
 			dirname[0] = '\0';
-			if (rover.nfiles > HEIGHT)
+			if (fm.nfiles > HEIGHT)
 				SCROLL = ESEL - HEIGHT / 2;
 			update_view();
 		} else if (!strcmp(key, RVK_HOME)) {
@@ -1310,23 +1310,23 @@ main(int argc, char *argv[])
 				reload();
 			}
 		} else if (!strcmp(key, RVK_VIEW)) {
-			if (!rover.nfiles || S_ISDIR(EMODE(ESEL)))
+			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
 				continue;
 			if (open_with_env(user_pager, ENAME(ESEL)))
 				cd(0);
 		} else if (!strcmp(key, RVK_EDIT)) {
-			if (!rover.nfiles || S_ISDIR(EMODE(ESEL)))
+			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
 				continue;
 			if (open_with_env(user_editor, ENAME(ESEL)))
 				cd(0);
 		} else if (!strcmp(key, RVK_OPEN)) {
-			if (!rover.nfiles || S_ISDIR(EMODE(ESEL)))
+			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
 				continue;
 			if (open_with_env(user_open, ENAME(ESEL)))
 				cd(0);
 		} else if (!strcmp(key, RVK_SEARCH)) {
 			int oldsel, oldscroll, length;
-			if (!rover.nfiles)
+			if (!fm.nfiles)
 				continue;
 			oldsel = ESEL;
 			oldscroll = SCROLL;
@@ -1337,20 +1337,20 @@ main(int argc, char *argv[])
 				Color color = RED;
 				length = strlen(INPUT);
 				if (length) {
-					for (sel = 0; sel < rover.nfiles; sel++)
+					for (sel = 0; sel < fm.nfiles; sel++)
 						if (!strncmp(ENAME(sel), INPUT,
 							length))
 							break;
-					if (sel < rover.nfiles) {
+					if (sel < fm.nfiles) {
 						color = GREEN;
 						ESEL = sel;
-						if (rover.nfiles > HEIGHT) {
+						if (fm.nfiles > HEIGHT) {
 							if (sel < 3)
 								SCROLL = 0;
 							else if (sel - 3 >
-							    rover.nfiles -
+							    fm.nfiles -
 							    HEIGHT)
-								SCROLL = rover.nfiles -
+								SCROLL = fm.nfiles -
 									HEIGHT;
 							else
 								SCROLL = sel -
@@ -1386,7 +1386,7 @@ main(int argc, char *argv[])
 			while ((edit_stat = get_line_edit()) == CONTINUE) {
 				int length = strlen(INPUT);
 				ok = length;
-				for (i = 0; i < rover.nfiles; i++) {
+				for (i = 0; i < fm.nfiles; i++) {
 					if (
 						!strncmp(ENAME(i), INPUT, length) &&
 						(!strcmp(ENAME(i) + length, "") ||
@@ -1420,7 +1420,7 @@ main(int argc, char *argv[])
 			while ((edit_stat = get_line_edit()) == CONTINUE) {
 				int length = strlen(INPUT);
 				ok = length;
-				for (i = 0; i < rover.nfiles; i++) {
+				for (i = 0; i < fm.nfiles; i++) {
 					if (
 						!strncmp(ENAME(i), INPUT, length) &&
 						(!strcmp(ENAME(i) + length, "") ||
@@ -1461,7 +1461,7 @@ main(int argc, char *argv[])
 			while ((edit_stat = get_line_edit()) == CONTINUE) {
 				int length = strlen(INPUT);
 				ok = length;
-				for (i = 0; i < rover.nfiles; i++)
+				for (i = 0; i < fm.nfiles; i++)
 					if (
 						!strncmp(ENAME(i), INPUT, length) &&
 						(!strcmp(ENAME(i) + length, "") ||
@@ -1479,9 +1479,9 @@ main(int argc, char *argv[])
 				if (ok) {
 					if (!rename(ENAME(ESEL), INPUT) &&
 					    MARKED(ESEL)) {
-						del_mark(&rover.marks,
+						del_mark(&fm.marks,
 						    ENAME(ESEL));
-						add_mark(&rover.marks, CWD,
+						add_mark(&fm.marks, CWD,
 						    INPUT);
 					}
 					cd(1);
@@ -1492,7 +1492,7 @@ main(int argc, char *argv[])
 					    INPUT);
 			}
 		} else if (!strcmp(key, RVK_TG_EXEC)) {
-			if (!rover.nfiles || S_ISDIR(EMODE(ESEL)))
+			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
 				continue;
 			if (S_IXUSR & EMODE(ESEL))
 				EMODE(ESEL) &= ~(S_IXUSR | S_IXGRP | S_IXOTH);
@@ -1508,10 +1508,10 @@ main(int argc, char *argv[])
 				update_view();
 			}
 		} else if (!strcmp(key, RVK_DELETE)) {
-			if (rover.nfiles) {
+			if (fm.nfiles) {
 				message(YELLOW, "Delete \"%s\"? (Y/n)",
 				    ENAME(ESEL));
-				if (rover_getch() == 'Y') {
+				if (fm_getch() == 'Y') {
 					const char *name = ENAME(ESEL);
 					int ret = ISDIR(ENAME(ESEL)) ?
 						deldir(name) : delfile(name);
@@ -1526,33 +1526,33 @@ main(int argc, char *argv[])
 				message(RED, "No entry selected for deletion.");
 		} else if (!strcmp(key, RVK_TG_MARK)) {
 			if (MARKED(ESEL))
-				del_mark(&rover.marks, ENAME(ESEL));
+				del_mark(&fm.marks, ENAME(ESEL));
 			else
-				add_mark(&rover.marks, CWD, ENAME(ESEL));
+				add_mark(&fm.marks, CWD, ENAME(ESEL));
 			MARKED(ESEL) = !MARKED(ESEL);
-			ESEL = (ESEL + 1) % rover.nfiles;
+			ESEL = (ESEL + 1) % fm.nfiles;
 			update_view();
 		} else if (!strcmp(key, RVK_INVMARK)) {
-			for (i = 0; i < rover.nfiles; i++) {
+			for (i = 0; i < fm.nfiles; i++) {
 				if (MARKED(i))
-					del_mark(&rover.marks, ENAME(i));
+					del_mark(&fm.marks, ENAME(i));
 				else
-					add_mark(&rover.marks, CWD, ENAME(i));
+					add_mark(&fm.marks, CWD, ENAME(i));
 				MARKED(i) = !MARKED(i);
 			}
 			update_view();
 		} else if (!strcmp(key, RVK_MARKALL)) {
-			for (i = 0; i < rover.nfiles; i++)
+			for (i = 0; i < fm.nfiles; i++)
 				if (!MARKED(i)) {
-					add_mark(&rover.marks, CWD, ENAME(i));
+					add_mark(&fm.marks, CWD, ENAME(i));
 					MARKED(i) = 1;
 				}
 			update_view();
 		} else if (!strcmp(key, RVK_MARK_DELETE)) {
-			if (rover.marks.nentries) {
+			if (fm.marks.nentries) {
 				message(YELLOW,
 				    "Delete all marked entries? (Y/n)");
-				if (rover_getch() == 'Y')
+				if (fm_getch() == 'Y')
 					process_marked(NULL, delfile, deldir,
 					    "Deleting", "Deleted");
 				else
@@ -1560,8 +1560,8 @@ main(int argc, char *argv[])
 			} else
 				message(RED, "No entries marked for deletion.");
 		} else if (!strcmp(key, RVK_MARK_COPY)) {
-			if (rover.marks.nentries) {
-				if (strcmp(CWD, rover.marks.dirpath))
+			if (fm.marks.nentries) {
+				if (strcmp(CWD, fm.marks.dirpath))
 					process_marked(adddir, cpyfile, NULL,
 					    "Copying", "Copied");
 				else
@@ -1570,8 +1570,8 @@ main(int argc, char *argv[])
 			} else
 				message(RED, "No entries marked for copying.");
 		} else if (!strcmp(key, RVK_MARK_MOVE)) {
-			if (rover.marks.nentries) {
-				if (strcmp(CWD, rover.marks.dirpath))
+			if (fm.marks.nentries) {
+				if (strcmp(CWD, fm.marks.dirpath))
 					process_marked(adddir, movfile, deldir,
 					    "Moving", "Moved");
 				else
@@ -1581,22 +1581,22 @@ main(int argc, char *argv[])
 				message(RED, "No entries marked for moving.");
 		}
 	}
-	if (rover.nfiles)
-		free_rows(&rover.rows, rover.nfiles);
-	delwin(rover.window);
+	if (fm.nfiles)
+		free_rows(&fm.rows, fm.nfiles);
+	delwin(fm.window);
 	if (save_cwd_file != NULL) {
 		fputs(CWD, save_cwd_file);
 		fclose(save_cwd_file);
 	}
 	if (save_marks_file != NULL) {
-		for (i = 0; i < rover.marks.bulk; i++) {
-			entry = rover.marks.entries[i];
+		for (i = 0; i < fm.marks.bulk; i++) {
+			entry = fm.marks.entries[i];
 			if (entry)
 				fprintf(save_marks_file, "%s%s\n",
-				    rover.marks.dirpath, entry);
+				    fm.marks.dirpath, entry);
 		}
 		fclose(save_marks_file);
 	}
-	free_marks(&rover.marks);
+	free_marks(&fm.marks);
 	return 0;
 }
