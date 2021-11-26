@@ -140,8 +140,9 @@ static struct state {
 #define EDIT_DELETE(E)     (E).right++
 #define EDIT_CLEAR(E)      do { (E).left = 0; (E).right = BUFLEN-1; } while(0)
 
-typedef enum EditStat { CONTINUE, CONFIRM, CANCEL } EditStat;
-typedef enum Color { DEFAULT, RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, WHITE, BLACK } Color;
+enum editstate { CONTINUE, CONFIRM, CANCEL };
+enum color { DEFAULT, RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, WHITE, BLACK };
+
 typedef int (*PROCESS)(const char *path);
 
 static void
@@ -562,7 +563,7 @@ update_view()
 
 /* Show a message on the status bar. */
 static void
-message(Color color, char *fmt, ...)
+message(enum color c, char *fmt, ...)
 {
 	int len, pos;
 	va_list args;
@@ -573,7 +574,7 @@ message(Color color, char *fmt, ...)
 	len = strlen(BUF1);
 	pos = (STATUSPOS - len) / 2;
 	attr_on(A_BOLD, NULL);
-	color_set(color, NULL);
+	color_set(c, NULL);
 	mvaddstr(LINES - 1, pos, BUF1);
 	color_set(DEFAULT, NULL);
 	attr_off(A_BOLD, NULL);
@@ -996,7 +997,7 @@ start_line_edit(const char *init_input)
 }
 
 /* Read input and change editing state accordingly. */
-static EditStat
+static enum editstate
 get_line_edit()
 {
 	wchar_t eraser, killer, wch;
@@ -1056,7 +1057,7 @@ get_line_edit()
 
 /* Update line input on the screen. */
 static void
-update_input(const char *prompt, Color color)
+update_input(const char *prompt, enum color c)
 {
 	int plen, ilen, maxlen;
 
@@ -1071,7 +1072,7 @@ update_input(const char *prompt, Color color)
 		fm.edit_scroll = MAX(fm.edit.left - maxlen, 0);
 	color_set(RVC_PROMPT, NULL);
 	mvaddstr(LINES - 1, 0, prompt);
-	color_set(color, NULL);
+	color_set(c, NULL);
 	mbstowcs(WBUF, INPUT, COLS);
 	mvaddnwstr(LINES - 1, plen, &WBUF[fm.edit_scroll], maxlen);
 	mvaddch(LINES - 1, plen + MIN(ilen - fm.edit_scroll, maxlen + 1),
@@ -1093,7 +1094,7 @@ main(int argc, char *argv[])
 	const char *key;
 	const char *clip_path;
 	DIR *d;
-	EditStat edit_stat;
+	enum editstate edit_stat;
 	FILE *save_cwd_file = NULL;
 	FILE *save_marks_file = NULL;
 	FILE *clip_file;
@@ -1334,7 +1335,7 @@ main(int argc, char *argv[])
 			update_input(RVP_SEARCH, RED);
 			while ((edit_stat = get_line_edit()) == CONTINUE) {
 				int sel;
-				Color color = RED;
+				enum color c = RED;
 				length = strlen(INPUT);
 				if (length) {
 					for (sel = 0; sel < fm.nfiles; sel++)
@@ -1342,7 +1343,7 @@ main(int argc, char *argv[])
 							length))
 							break;
 					if (sel < fm.nfiles) {
-						color = GREEN;
+						c = GREEN;
 						ESEL = sel;
 						if (fm.nfiles > HEIGHT) {
 							if (sel < 3)
@@ -1362,7 +1363,7 @@ main(int argc, char *argv[])
 					SCROLL = oldscroll;
 				}
 				update_view();
-				update_input(RVP_SEARCH, color);
+				update_input(RVP_SEARCH, c);
 			}
 			if (edit_stat == CANCEL) {
 				ESEL = oldsel;
