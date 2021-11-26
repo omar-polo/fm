@@ -34,14 +34,6 @@ struct option opts[] = {
 	{NULL,		0,		NULL,	0}
 };
 
-/*
- * This signal is not defined by POSIX, but should be present on all
- * systems that have resizable terminals.
- */
-#ifndef SIGWINCH
-#define SIGWINCH  28
-#endif
-
 /* String buffers. */
 #define BUFLEN  PATH_MAX
 static char BUF1[BUFLEN];
