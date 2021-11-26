@@ -145,13 +145,60 @@ enum color { DEFAULT, RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, WHITE, BLACK };
 
 typedef int (*PROCESS)(const char *path);
 
+#ifndef __dead
+#define __dead __attribute__((noreturn))
+#endif
+
+static inline __dead void *
+quit(const char *reason)
+{
+	int saved_errno;
+
+	saved_errno = errno;
+	endwin();
+	nocbreak();
+	fflush(stderr);
+	errno = saved_errno;
+	err(1, "%s", reason);
+}
+
+static inline void *
+xmalloc(size_t size)
+{
+	void *d;
+
+	if ((d = malloc(size)) == NULL)
+		quit("malloc");
+	return d;
+}
+
+static inline void *
+xcalloc(size_t nmemb, size_t size)
+{
+	void *d;
+
+	if ((d = calloc(nmemb, size)) == NULL)
+		quit("calloc");
+	return d;
+}
+
+static inline void *
+xrealloc(void *p, size_t size)
+{
+	void *d;
+
+	if ((d = realloc(d, size)) == NULL)
+		quit("realloc");
+	return d;
+}
+
 static void
 init_marks(struct marks *marks)
 {
 	strcpy(marks->dirpath, "");
 	marks->bulk = BULK_INIT;
 	marks->nentries = 0;
-	marks->entries = calloc(marks->bulk, sizeof *marks->entries);
+	marks->entries = xcalloc(marks->bulk, sizeof *marks->entries);
 }
 
 /* Unmark all entries. */
@@ -171,7 +218,7 @@ mark_none(struct marks *marks)
 	        /* Reset bulk to free some memory. */
 		free(marks->entries);
 		marks->bulk = BULK_INIT;
-		marks->entries = calloc(marks->bulk, sizeof *marks->entries);
+		marks->entries = xcalloc(marks->bulk, sizeof *marks->entries);
 	}
 }
 
@@ -186,7 +233,7 @@ add_mark(struct marks *marks, char *dirpath, char *entry)
 			/* Expand bulk to accomodate new entry. */
 			int extra = marks->bulk / 2;
 			marks->bulk += extra; /* bulk *= 1.5; */
-			marks->entries = realloc(marks->entries,
+			marks->entries = xrealloc(marks->entries,
 			    marks->bulk * sizeof *marks->entries);
 			memset(&marks->entries[marks->nentries], 0,
 			    extra * sizeof *marks->entries);
@@ -203,7 +250,7 @@ add_mark(struct marks *marks, char *dirpath, char *entry)
 		strcpy(marks->dirpath, dirpath);
 		i = 0;
 	}
-	marks->entries[i] = malloc(strlen(entry) + 1);
+	marks->entries[i] = xmalloc(strlen(entry) + 1);
 	strcpy(marks->entries[i], entry);
 	marks->nentries++;
 }
@@ -620,7 +667,7 @@ ls(struct row **rowsp, uint8_t flags)
 		return 0;
 	}
 	rewinddir(dp);
-	rows = malloc(n * sizeof *rows);
+	rows = xmalloc(n * sizeof *rows);
 	i = 0;
 	while ((ep = readdir(dp))) {
 		if (!strcmp(ep->d_name, ".") || !strcmp(ep->d_name, ".."))
@@ -632,7 +679,7 @@ ls(struct row **rowsp, uint8_t flags)
 		stat(ep->d_name, &statbuf);
 		if (S_ISDIR(statbuf.st_mode)) {
 			if (flags & SHOW_DIRS) {
-				rows[i].name = malloc(strlen(ep->d_name) + 2);
+				rows[i].name = xmalloc(strlen(ep->d_name) + 2);
 				strcpy(rows[i].name, ep->d_name);
 				if (!rows[i].islink)
 					strcat(rows[i].name, "/");
@@ -640,7 +687,7 @@ ls(struct row **rowsp, uint8_t flags)
 				i++;
 			}
 		} else if (flags & SHOW_FILES) {
-			rows[i].name = malloc(strlen(ep->d_name) + 1);
+			rows[i].name = xmalloc(strlen(ep->d_name) + 1);
 			strcpy(rows[i].name, ep->d_name);
 			rows[i].size = statbuf.st_size;
 			rows[i].mode = statbuf.st_mode;
