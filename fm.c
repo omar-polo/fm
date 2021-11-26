@@ -62,55 +62,55 @@ static char *user_open;
 #define BULK_THRESH 256
 
 /* Information associated to each entry in listing. */
-typedef struct Row {
+struct row {
 	char *name;
 	off_t size;
 	mode_t mode;
 	int islink;
 	int marked;
-} Row;
+};
 
 /* Dynamic array of marked entries. */
-typedef struct Marks {
+struct marks {
 	char dirpath[PATH_MAX];
 	int bulk;
 	int nentries;
 	char **entries;
-} Marks;
+};
 
 /* Line editing state. */
-typedef struct Edit {
+struct edit {
 	wchar_t buffer[BUFLEN + 1];
 	int left, right;
-} Edit;
+};
 
 /* Each tab only stores the following information. */
-typedef struct Tab {
+struct tab {
 	int scroll;
 	int esel;
 	uint8_t flags;
 	char cwd[PATH_MAX];
-} Tab;
+};
 
-typedef struct Prog {
+struct prog {
 	off_t partial;
 	off_t total;
 	const char *msg;
-} Prog;
+};
 
 /* Global state. */
 static struct Rover {
 	int tab;
 	int nfiles;
-	Row *rows;
+	struct row *rows;
 	WINDOW *window;
-	Marks marks;
-	Edit edit;
+	struct marks marks;
+	struct edit edit;
 	int edit_scroll;
 	volatile sig_atomic_t pending_usr1;
 	volatile sig_atomic_t pending_winch;
-	Prog prog;
-	Tab tabs[10];
+	struct prog prog;
+	struct tab tabs[10];
 } rover;
 
 /* Macros for accessing global state. */
@@ -145,7 +145,7 @@ typedef enum Color { DEFAULT, RED, GREEN, YELLOW, BLUE, CYAN, MAGENTA, WHITE, BL
 typedef int (*PROCESS)(const char *path);
 
 static void
-init_marks(Marks *marks)
+init_marks(struct marks *marks)
 {
 	strcpy(marks->dirpath, "");
 	marks->bulk = BULK_INIT;
@@ -155,7 +155,7 @@ init_marks(Marks *marks)
 
 /* Unmark all entries. */
 static void
-mark_none(Marks *marks)
+mark_none(struct marks *marks)
 {
 	int i;
 
@@ -175,7 +175,7 @@ mark_none(Marks *marks)
 }
 
 static void
-add_mark(Marks *marks, char *dirpath, char *entry)
+add_mark(struct marks *marks, char *dirpath, char *entry)
 {
 	int i;
 
@@ -208,7 +208,7 @@ add_mark(Marks *marks, char *dirpath, char *entry)
 }
 
 static void
-del_mark(Marks *marks, char *entry)
+del_mark(struct marks *marks, char *entry)
 {
 	int i;
 
@@ -225,7 +225,7 @@ del_mark(Marks *marks, char *entry)
 }
 
 static void
-free_marks(Marks *marks)
+free_marks(struct marks *marks)
 {
 	int i;
 
@@ -591,8 +591,8 @@ static int
 rowcmp(const void *a, const void *b)
 {
 	int isdir1, isdir2, cmpdir;
-	const Row *r1 = a;
-	const Row *r2 = b;
+	const struct row *r1 = a;
+	const struct row *r2 = b;
 	isdir1 = S_ISDIR(r1->mode);
 	isdir2 = S_ISDIR(r2->mode);
 	cmpdir = isdir2 - isdir1;
@@ -601,12 +601,12 @@ rowcmp(const void *a, const void *b)
 
 /* Get all entries in current working directory. */
 static int
-ls(Row **rowsp, uint8_t flags)
+ls(struct row **rowsp, uint8_t flags)
 {
 	DIR *dp;
 	struct dirent *ep;
 	struct stat statbuf;
-	Row *rows;
+	struct row *rows;
 	int i, n;
 
 	if (!(dp = opendir(".")))
@@ -654,7 +654,7 @@ ls(Row **rowsp, uint8_t flags)
 }
 
 static void
-free_rows(Row **rowsp, int nfiles)
+free_rows(struct row **rowsp, int nfiles)
 {
 	int i;
 
@@ -840,7 +840,7 @@ process_marked(PROCESS pre, PROCESS proc, PROCESS pos, const char *msg_doing,
 	clear_message();
 	message(CYAN, "%s...", msg_doing);
 	refresh();
-	rover.prog = (Prog){0, count_marked(), msg_doing};
+	rover.prog = (struct prog){0, count_marked(), msg_doing};
 	for (i = 0; i < rover.marks.bulk; i++) {
 		entry = rover.marks.entries[i];
 		if (entry) {
