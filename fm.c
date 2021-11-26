@@ -2,28 +2,29 @@
 #define _XOPEN_SOURCE_EXTENDED
 #define _FILE_OFFSET_BITS   64
 
-#include <err.h>
-#include <getopt.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include <ctype.h>
+#include <curses.h>
+#include <dirent.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <libgen.h>
+#include <limits.h>
+#include <locale.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
-#include <string.h>
-#include <sys/types.h>  /* pid_t, ... */
-#include <stdio.h>
-#include <limits.h>     /* PATH_MAX */
-#include <locale.h>     /* setlocale(), LC_ALL */
-#include <unistd.h>     /* chdir(), getcwd(), read(), close(), ... */
-#include <dirent.h>     /* DIR, struct dirent, opendir(), ... */
-#include <libgen.h>
-#include <sys/stat.h>
-#include <fcntl.h>      /* open() */
-#include <sys/wait.h>   /* waitpid() */
-#include <signal.h>     /* struct sigaction, sigaction() */
-#include <errno.h>
-#include <stdarg.h>
-#include <curses.h>
 
 #include "config.h"
 
