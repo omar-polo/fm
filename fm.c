@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE       700
+/* needed for some ncurses stuff */
 #define _XOPEN_SOURCE_EXTENDED
 #define _FILE_OFFSET_BITS   64
 
