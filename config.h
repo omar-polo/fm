@@ -1,4 +1,4 @@
-#define RV_VERSION      "1.0.1"
+#define RV_VERSION      "1.0"
 
 /* CTRL+X: "^X"
    ALT+X: "M-X" */
