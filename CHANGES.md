@@ -9,6 +9,8 @@
    - no more customizable via `config.h`
    - both vi and emacs friendly
  - print a message when an undefined key is used
+ - manpage rewritten in mandoc
+ - makefile is now in portable make
 
 # Rover history
 
