@@ -1,5 +1,20 @@
 # Change Log
 
+## future 1.1
+
+ - reworked various part of the code
+   - misc improvements
+   - use standard getopt(3)
+ - keybindings reworked
+   - no more customizable via `config.h`
+   - both vi and emacs friendly
+ - print a message when an undefined key is used
+
+# Rover history
+
+fm was forked from rover on November 2021.  For history sake, here's
+the original changelog for rover until the fork.
+
 ## [1.0.1] - 2020-06-04
 
 ### Bug Fixes
