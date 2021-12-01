@@ -30,8 +30,8 @@ install: fm
 	${INSTALL_MAN} fm.1 ${MANDIR}/fm.1
 
 uninstall:
-	rm -f $(BINDIR)/fm
-	rm -f $(MANDIR)/fm.1
+	rm -f ${BINDIR}/fm
+	rm -f ${MANDIR}/fm.1
 
 clean:
 	rm -f fm *.o
