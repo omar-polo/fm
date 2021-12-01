@@ -402,6 +402,8 @@ spawn(const char *argv0, ...)
 	const char *argv[16], *last;
 	va_list ap;
 
+	memset(argv, 0, sizeof(argv));
+
 	va_start(ap, argv0);
 	argv[0] = argv0;
 	for (i = 1; i < nitems(argv); ++i) {
