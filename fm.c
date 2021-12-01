@@ -128,6 +128,7 @@ static struct state {
 #define MIN(A, B)   ((A) < (B) ? (A) : (B))
 #define MAX(A, B)   ((A) > (B) ? (A) : (B))
 #define ISDIR(E)    (strchr((E), '/') != NULL)
+#define CTRL(x)     ((x) & 0x1f)
 
 /* Line Editing Macros. */
 #define EDIT_FULL(E)       ((E).left == (E).right)
@@ -1132,6 +1133,44 @@ update_input(const char *prompt, enum color c)
 	move(LINES - 1, plen + fm.edit.left - fm.edit_scroll);
 }
 
+static void
+loop(void)
+{
+	int ch;
+
+	for (;;) {
+		ch = fm_getch();
+		clear_message();
+		switch (ch) {
+		case 'j':
+		case 'n':
+		case CTRL('n'):
+			if (!fm.nfiles)
+				continue;
+			ESEL = MIN(ESEL + 1, fm.nfiles - 1);
+			update_view();
+			break;
+
+		case 'k':
+		case 'p':
+		case CTRL('p'):
+			if (!fm.nfiles)
+				continue;
+			ESEL = MAX(ESEL - 1, 0);
+			update_view();
+			break;
+
+		case 'q':
+			return;
+
+		default:
+			message(RED, "%s is undefined", keyname(ch));
+			refresh();
+			break;
+		}
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1198,437 +1237,9 @@ main(int argc, char *argv[])
 	strcpy(CLIPBOARD, CWD);
 	if (fm.nfiles > 0)
 		strcat(CLIPBOARD, ENAME(ESEL));
-	while (1) {
-		ch = fm_getch();
-		key = keyname(ch);
-		clear_message();
-		if (!strcmp(key, RVK_QUIT))
-			break;
-		else if (ch >= '0' && ch <= '9') {
-			fm.tab = ch - '0';
-			cd(0);
-		} else if (!strcmp(key, RVK_HELP)) {
-			spawn((char *[]) { "man", "fm", NULL });
-		} else if (!strcmp(key, RVK_DOWN)) {
-			if (!fm.nfiles)
-				continue;
-			ESEL = MIN(ESEL + 1, fm.nfiles - 1);
-			update_view();
-		} else if (!strcmp(key, RVK_UP)) {
-			if (!fm.nfiles)
-				continue;
-			ESEL = MAX(ESEL - 1, 0);
-			update_view();
-		} else if (!strcmp(key, RVK_JUMP_DOWN)) {
-			if (!fm.nfiles)
-				continue;
-			ESEL = MIN(ESEL + RV_JUMP, fm.nfiles - 1);
-			if (fm.nfiles > HEIGHT)
-				SCROLL = MIN(SCROLL + RV_JUMP,
-				    fm.nfiles - HEIGHT);
-			update_view();
-		} else if (!strcmp(key, RVK_JUMP_UP)) {
-			if (!fm.nfiles)
-				continue;
-			ESEL = MAX(ESEL - RV_JUMP, 0);
-			SCROLL = MAX(SCROLL - RV_JUMP, 0);
-			update_view();
-		} else if (!strcmp(key, RVK_JUMP_TOP)) {
-			if (!fm.nfiles)
-				continue;
-			ESEL = 0;
-			update_view();
-		} else if (!strcmp(key, RVK_JUMP_BOTTOM)) {
-			if (!fm.nfiles)
-				continue;
-			ESEL = fm.nfiles - 1;
-			update_view();
-		} else if (!strcmp(key, RVK_CD_DOWN)) {
-			if (!fm.nfiles || !S_ISDIR(EMODE(ESEL)))
-				continue;
-			if (chdir(ENAME(ESEL)) == -1) {
-				message(RED, "Cannot access \"%s\".",
-				    ENAME(ESEL));
-				continue;
-			}
-			strcat(CWD, ENAME(ESEL));
-			cd(1);
-		} else if (!strcmp(key, RVK_CD_UP)) {
-			char *dirname, first;
-			if (!strcmp(CWD, "/"))
-				continue;
-			CWD[strlen(CWD) - 1] = '\0';
-			dirname = strrchr(CWD, '/') + 1;
-			first = dirname[0];
-			dirname[0] = '\0';
-			cd(1);
-			dirname[0] = first;
-			dirname[strlen(dirname)] = '/';
-			try_to_sel(dirname);
-			dirname[0] = '\0';
-			if (fm.nfiles > HEIGHT)
-				SCROLL = ESEL - HEIGHT / 2;
-			update_view();
-		} else if (!strcmp(key, RVK_HOME)) {
-			strcpy(CWD, getenv("HOME"));
-			if (CWD[strlen(CWD) - 1] != '/')
-				strcat(CWD, "/");
-			cd(1);
-		} else if (!strcmp(key, RVK_TARGET)) {
-			char *bname, first;
-			int is_dir = S_ISDIR(EMODE(ESEL));
-			ssize_t len = readlink(ENAME(ESEL), BUF1, BUFLEN - 1);
-			if (len == -1)
-				continue;
-			BUF1[len] = '\0';
-			if (access(BUF1, F_OK) == -1) {
-				char *msg;
-				switch (errno) {
-				case EACCES:
-					msg = "Cannot access \"%s\".";
-					break;
-				case ENOENT:
-					msg = "\"%s\" does not exist.";
-					break;
-				default:
-					msg = "Cannot navigate to \"%s\".";
-				}
-				strcpy(BUF2, BUF1); /* message() uses BUF1. */
-				message(RED, msg, BUF2);
-				continue;
-			}
-			realpath(BUF1, CWD);
-			len = strlen(CWD);
-			if (CWD[len - 1] == '/')
-				CWD[len - 1] = '\0';
-			bname = strrchr(CWD, '/') + 1;
-			first = *bname;
-			*bname = '\0';
-			cd(1);
-			*bname = first;
-			if (is_dir)
-				strcat(CWD, "/");
-			try_to_sel(bname);
-			*bname = '\0';
-			update_view();
-		} else if (!strcmp(key, RVK_COPY_PATH)) {
-			clip_path = getenv("CLIP");
-			if (!clip_path)
-				goto copy_path_fail;
-			clip_file = fopen(clip_path, "w");
-			if (!clip_file)
-				goto copy_path_fail;
-			fprintf(clip_file, "%s%s\n", CWD, ENAME(ESEL));
-			fclose(clip_file);
-			goto copy_path_done;
-		copy_path_fail:
-			strcpy(CLIPBOARD, CWD);
-			strcat(CLIPBOARD, ENAME(ESEL));
-		copy_path_done:
-			;
-		} else if (!strcmp(key, RVK_PASTE_PATH)) {
-			clip_path = getenv("CLIP");
-			if (!clip_path)
-				goto paste_path_fail;
-			clip_file = fopen(clip_path, "r");
-			if (!clip_file)
-				goto paste_path_fail;
-			fscanf(clip_file, "%s\n", CLIPBOARD);
-			fclose(clip_file);
-		paste_path_fail:
-			strcpy(BUF1, CLIPBOARD);
-			strcpy(CWD, dirname(BUF1));
-			if (strcmp(CWD, "/"))
-				strcat(CWD, "/");
-			cd(1);
-			strcpy(BUF1, CLIPBOARD);
-			try_to_sel(strstr(CLIPBOARD, basename(BUF1)));
-			update_view();
-		} else if (!strcmp(key, RVK_REFRESH)) {
-			reload();
-		} else if (!strcmp(key, RVK_SHELL)) {
-			program = user_shell;
-			if (program) {
-#ifdef RV_SHELL
-				spawn((char *[]) { RV_SHELL, "-c", program,
-					    NULL});
-#else
-				spawn((char *[]) { program, NULL });
-#endif
-				reload();
-			}
-		} else if (!strcmp(key, RVK_VIEW)) {
-			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
-				continue;
-			if (open_with_env(user_pager, ENAME(ESEL)))
-				cd(0);
-		} else if (!strcmp(key, RVK_EDIT)) {
-			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
-				continue;
-			if (open_with_env(user_editor, ENAME(ESEL)))
-				cd(0);
-		} else if (!strcmp(key, RVK_OPEN)) {
-			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
-				continue;
-			if (open_with_env(user_open, ENAME(ESEL)))
-				cd(0);
-		} else if (!strcmp(key, RVK_SEARCH)) {
-			int oldsel, oldscroll, length;
-			if (!fm.nfiles)
-				continue;
-			oldsel = ESEL;
-			oldscroll = SCROLL;
-			start_line_edit("");
-			update_input(RVP_SEARCH, RED);
-			while ((edit_stat = get_line_edit()) == CONTINUE) {
-				int sel;
-				enum color c = RED;
-				length = strlen(INPUT);
-				if (length) {
-					for (sel = 0; sel < fm.nfiles; sel++)
-						if (!strncmp(ENAME(sel), INPUT,
-							length))
-							break;
-					if (sel < fm.nfiles) {
-						c = GREEN;
-						ESEL = sel;
-						if (fm.nfiles > HEIGHT) {
-							if (sel < 3)
-								SCROLL = 0;
-							else if (sel - 3 >
-							    fm.nfiles -
-							    HEIGHT)
-								SCROLL = fm.nfiles -
-									HEIGHT;
-							else
-								SCROLL = sel -
-									3;
-						}
-					}
-				} else {
-					ESEL = oldsel;
-					SCROLL = oldscroll;
-				}
-				update_view();
-				update_input(RVP_SEARCH, c);
-			}
-			if (edit_stat == CANCEL) {
-				ESEL = oldsel;
-				SCROLL = oldscroll;
-			}
-			clear_message();
-			update_view();
-		} else if (!strcmp(key, RVK_TG_FILES)) {
-			FLAGS ^= SHOW_FILES;
-			reload();
-		} else if (!strcmp(key, RVK_TG_DIRS)) {
-			FLAGS ^= SHOW_DIRS;
-			reload();
-		} else if (!strcmp(key, RVK_TG_HIDDEN)) {
-			FLAGS ^= SHOW_HIDDEN;
-			reload();
-		} else if (!strcmp(key, RVK_NEW_FILE)) {
-			int ok = 0;
-			start_line_edit("");
-			update_input(RVP_NEW_FILE, RED);
-			while ((edit_stat = get_line_edit()) == CONTINUE) {
-				int length = strlen(INPUT);
-				ok = length;
-				for (i = 0; i < fm.nfiles; i++) {
-					if (
-						!strncmp(ENAME(i), INPUT, length) &&
-						(!strcmp(ENAME(i) + length, "") ||
-						    !strcmp(ENAME(i) + length, "/"))
-						) {
-						ok = 0;
-						break;
-					}
-				}
-				update_input(RVP_NEW_FILE, ok ? GREEN : RED);
-			}
-			clear_message();
-			if (edit_stat == CONFIRM) {
-				if (ok) {
-					if (addfile(INPUT) == 0) {
-						cd(1);
-						try_to_sel(INPUT);
-						update_view();
-					} else
-						message(RED,
-						    "Could not create \"%s\".",
-						    INPUT);
-				} else
-					message(RED, "\"%s\" already exists.",
-					    INPUT);
-			}
-		} else if (!strcmp(key, RVK_NEW_DIR)) {
-			int ok = 0;
-			start_line_edit("");
-			update_input(RVP_NEW_DIR, RED);
-			while ((edit_stat = get_line_edit()) == CONTINUE) {
-				int length = strlen(INPUT);
-				ok = length;
-				for (i = 0; i < fm.nfiles; i++) {
-					if (
-						!strncmp(ENAME(i), INPUT, length) &&
-						(!strcmp(ENAME(i) + length, "") ||
-						    !strcmp(ENAME(i) + length, "/"))
-						) {
-						ok = 0;
-						break;
-					}
-				}
-				update_input(RVP_NEW_DIR, ok ? GREEN : RED);
-			}
-			clear_message();
-			if (edit_stat == CONFIRM) {
-				if (ok) {
-					if (adddir(INPUT) == 0) {
-						cd(1);
-						strcat(INPUT, "/");
-						try_to_sel(INPUT);
-						update_view();
-					} else
-						message(RED,
-						    "Could not create \"%s/\".",
-						    INPUT);
-				} else
-					message(RED, "\"%s\" already exists.",
-					    INPUT);
-			}
-		} else if (!strcmp(key, RVK_RENAME)) {
-			int ok = 0;
-			char *last;
-			int isdir;
-			strcpy(INPUT, ENAME(ESEL));
-			last = INPUT + strlen(INPUT) - 1;
-			if ((isdir = *last == '/'))
-				*last = '\0';
-			start_line_edit(INPUT);
-			update_input(RVP_RENAME, RED);
-			while ((edit_stat = get_line_edit()) == CONTINUE) {
-				int length = strlen(INPUT);
-				ok = length;
-				for (i = 0; i < fm.nfiles; i++)
-					if (
-						!strncmp(ENAME(i), INPUT, length) &&
-						(!strcmp(ENAME(i) + length, "") ||
-						    !strcmp(ENAME(i) + length, "/"))
-						) {
-						ok = 0;
-						break;
-					}
-				update_input(RVP_RENAME, ok ? GREEN : RED);
-			}
-			clear_message();
-			if (edit_stat == CONFIRM) {
-				if (isdir)
-					strcat(INPUT, "/");
-				if (ok) {
-					if (!rename(ENAME(ESEL), INPUT) &&
-					    MARKED(ESEL)) {
-						del_mark(&fm.marks,
-						    ENAME(ESEL));
-						add_mark(&fm.marks, CWD,
-						    INPUT);
-					}
-					cd(1);
-					try_to_sel(INPUT);
-					update_view();
-				} else
-					message(RED, "\"%s\" already exists.",
-					    INPUT);
-			}
-		} else if (!strcmp(key, RVK_TG_EXEC)) {
-			if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
-				continue;
-			if (S_IXUSR & EMODE(ESEL))
-				EMODE(ESEL) &= ~(S_IXUSR | S_IXGRP | S_IXOTH);
-			else
-				EMODE(ESEL) |= S_IXUSR | S_IXGRP | S_IXOTH;
-			if (chmod(ENAME(ESEL), EMODE(ESEL))) {
-				message(RED,
-				    "Failed to change mode of \"%s\".",
-				    ENAME(ESEL));
-			} else {
-				message(GREEN, "Changed mode of \"%s\".",
-				    ENAME(ESEL));
-				update_view();
-			}
-		} else if (!strcmp(key, RVK_DELETE)) {
-			if (fm.nfiles) {
-				message(YELLOW, "Delete \"%s\"? (Y/n)",
-				    ENAME(ESEL));
-				if (fm_getch() == 'Y') {
-					const char *name = ENAME(ESEL);
-					int ret = ISDIR(ENAME(ESEL)) ?
-						deldir(name) : delfile(name);
-					reload();
-					if (ret)
-						message(RED,
-						    "Could not delete \"%s\".",
-						    ENAME(ESEL));
-				} else
-					clear_message();
-			} else
-				message(RED, "No entry selected for deletion.");
-		} else if (!strcmp(key, RVK_TG_MARK)) {
-			if (MARKED(ESEL))
-				del_mark(&fm.marks, ENAME(ESEL));
-			else
-				add_mark(&fm.marks, CWD, ENAME(ESEL));
-			MARKED(ESEL) = !MARKED(ESEL);
-			ESEL = (ESEL + 1) % fm.nfiles;
-			update_view();
-		} else if (!strcmp(key, RVK_INVMARK)) {
-			for (i = 0; i < fm.nfiles; i++) {
-				if (MARKED(i))
-					del_mark(&fm.marks, ENAME(i));
-				else
-					add_mark(&fm.marks, CWD, ENAME(i));
-				MARKED(i) = !MARKED(i);
-			}
-			update_view();
-		} else if (!strcmp(key, RVK_MARKALL)) {
-			for (i = 0; i < fm.nfiles; i++)
-				if (!MARKED(i)) {
-					add_mark(&fm.marks, CWD, ENAME(i));
-					MARKED(i) = 1;
-				}
-			update_view();
-		} else if (!strcmp(key, RVK_MARK_DELETE)) {
-			if (fm.marks.nentries) {
-				message(YELLOW,
-				    "Delete all marked entries? (Y/n)");
-				if (fm_getch() == 'Y')
-					process_marked(NULL, delfile, deldir,
-					    "Deleting", "Deleted");
-				else
-					clear_message();
-			} else
-				message(RED, "No entries marked for deletion.");
-		} else if (!strcmp(key, RVK_MARK_COPY)) {
-			if (fm.marks.nentries) {
-				if (strcmp(CWD, fm.marks.dirpath))
-					process_marked(adddir, cpyfile, NULL,
-					    "Copying", "Copied");
-				else
-					message(RED,
-					    "Cannot copy to the same path.");
-			} else
-				message(RED, "No entries marked for copying.");
-		} else if (!strcmp(key, RVK_MARK_MOVE)) {
-			if (fm.marks.nentries) {
-				if (strcmp(CWD, fm.marks.dirpath))
-					process_marked(adddir, movfile, deldir,
-					    "Moving", "Moved");
-				else
-					message(RED,
-					    "Cannot move to the same path.");
-			} else
-				message(RED, "No entries marked for moving.");
-		}
-	}
+
+	loop();
+
 	if (fm.nfiles)
 		free_rows(&fm.rows, fm.nfiles);
 	delwin(fm.window);
