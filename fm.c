@@ -1155,44 +1155,113 @@ update_input(const char *prompt, enum color c)
 }
 
 static void
+cmd_down(void)
+{
+	if (fm.nfiles)
+		ESEL = MIN(ESEL + 1, fm.nfiles - 1);
+}
+
+static void
+cmd_up(void)
+{
+	if (fm.nfiles)
+		ESEL = MAX(ESEL - 1, 0);
+}
+
+static void
+cmd_scroll_down(void)
+{
+	if (!fm.nfiles)
+		return;
+	ESEL = MIN(ESEL + HEIGHT, fm.nfiles - 1);
+	if (fm.nfiles > HEIGHT)
+		SCROLL = MIN(SCROLL + HEIGHT, fm.nfiles - HEIGHT);
+}
+
+static void
+cmd_scroll_up(void)
+{
+	if (!fm.nfiles)
+		return;
+	ESEL = MAX(ESEL - HEIGHT, 0);
+	SCROLL = MAX(SCROLL - HEIGHT, 0);
+}
+
+static void
+cmd_man(void)
+{
+	spawn("man", "fm", NULL);
+}
+
+static void
 loop(void)
 {
-	int ch;
+	int meta, ch, c;
+	struct binding {
+		int ch;
+#define K_META 1
+#define K_CTRL 2
+		int chflags;
+		void (*fn)(void);
+#define X_UPDV 1
+#define X_QUIT 2
+		int flags;
+	} bindings[] = {
+		{'?',		0,	cmd_man,		0},
+		{'J',		0,	cmd_scroll_down,	X_UPDV},
+		{'K',		0,	cmd_scroll_up,		X_UPDV},
+		{'V',		K_CTRL,	cmd_scroll_down,	X_UPDV},
+		{'g',		K_CTRL,	NULL,			X_UPDV},
+		{'j',		0,	cmd_down,		X_UPDV},
+		{'k',		0,	cmd_up,			X_UPDV},
+		{'n',		0,	cmd_down,		X_UPDV},
+		{'n',		K_CTRL,	cmd_down,		X_UPDV},
+		{'p',		0,	cmd_up,			X_UPDV},
+		{'p',		K_CTRL,	cmd_up,			X_UPDV},
+		{'q',		0,	NULL,			X_QUIT},
+		{'v',		K_META,	cmd_scroll_up,		X_UPDV},
+		{KEY_NPAGE,	0,	cmd_scroll_down,	X_UPDV},
+		{KEY_PPAGE,	0,	cmd_scroll_up,		X_UPDV},
+		{KEY_RESIZE,	0,	NULL,			X_UPDV},
+		{KEY_RESIZE,	K_META,	NULL,			X_UPDV},
+	}, *b;
+	size_t i;
 
 	for (;;) {
+	again:
+		meta = 0;
 		ch = fm_getch();
-		clear_message();
-		switch (ch) {
-		case 'j':
-		case 'n':
-		case CTRL('n'):
-			if (!fm.nfiles)
-				continue;
-			ESEL = MIN(ESEL + 1, fm.nfiles - 1);
-			update_view();
-			break;
-
-		case 'k':
-		case 'p':
-		case CTRL('p'):
-			if (!fm.nfiles)
-				continue;
-			ESEL = MAX(ESEL - 1, 0);
-			update_view();
-			break;
-
-		case 'q':
-			return;
-
-		case '?':
-			spawn("man", "fm", NULL);
-			break;
-
-		default:
-			message(RED, "%s is undefined", keyname(ch));
-			refresh();
-			break;
+		if (ch == '\e') {
+			meta = 1;
+			if ((ch = fm_getch()) == '\e') {
+				meta = 0;
+				ch = '\e';
+			}
 		}
+
+		clear_message();
+
+		for (i = 0; i < nitems(bindings); ++i) {
+			b = &bindings[i];
+			c = b->ch;
+			if (b->chflags & K_CTRL)
+				c = CTRL(c);
+			if ((!meta && b->chflags & K_META) || ch != c)
+				continue;
+
+			if (b->flags & X_QUIT)
+				return;
+			if (b->fn != NULL)
+				b->fn();
+			if (b->flags & X_UPDV)
+				update_view();
+
+			goto again;
+		}
+
+		message(RED, "%s%s is undefined",
+		    meta ? "M-": "", keyname(ch));
+		refresh();
 	}
 }
 
