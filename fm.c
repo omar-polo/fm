@@ -1208,6 +1208,59 @@ cmd_jump_bottom(void)
 }
 
 static void
+cmd_cd_down(void)
+{
+	if (!fm.nfiles || !S_ISDIR(EMODE(ESEL)))
+		return;
+	if (chdir(ENAME(ESEL)) == -1) {
+		message(RED, "cd: %s: %s", ENAME(ESEL), strerror(errno));
+		return;
+	}
+	strlcat(CWD, ENAME(ESEL), sizeof(CWD));
+	cd(1);
+}
+
+static void
+cmd_cd_up(void)
+{
+	char *dirname, first;
+
+	if (!strcmp(CWD, "/"))
+		return;
+
+	/* dirname(3) basically */
+	dirname = strrchr(CWD, '/');
+	*dirname-- = '\0';
+	dirname = strrchr(CWD, '/') + 1;
+
+	first = dirname[0];
+	dirname[0] = '\0';
+	cd(1);
+	dirname[0] = first;
+	strlcat(dirname, "/", sizeof(dirname));
+	try_to_sel(dirname);
+	dirname[0] = '\0';
+	if (fm.nfiles > HEIGHT)
+		SCROLL = ESEL - HEIGHT / 2;
+}
+
+static void
+cmd_home(void)
+{
+	const char *home;
+
+	if ((home = getenv("HOME")) == NULL) {
+		message(RED, "HOME is not defined!");
+		return;
+	}
+
+	strlcpy(CWD, home, sizeof(CWD));
+	if (*CWD != '\0' && CWD[strlen(CWD) - 1] != '/')
+		strlcat(CWD, "/", sizeof(CWD));
+	cd(1);
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1221,10 +1274,16 @@ loop(void)
 #define X_QUIT 2
 		int flags;
 	} bindings[] = {
+		{'^',		0,	cmd_cd_up,		X_UPDV},
+		{'h',		0,	cmd_cd_up,		X_UPDV},
+		{'b',		0,	cmd_cd_up,		X_UPDV},
+		{'l',		0,	cmd_cd_down,		X_UPDV},
+		{'f',		0,	cmd_cd_down,		X_UPDV},
 		{'<',		K_META,	cmd_jump_top,		X_UPDV},
 		{'>',		K_META,	cmd_jump_bottom,	X_UPDV},
 		{'?',		0,	cmd_man,		0},
 		{'G',		0,	cmd_jump_bottom,	X_UPDV},
+		{'H',		0,	cmd_home,		X_UPDV},
 		{'J',		0,	cmd_scroll_down,	X_UPDV},
 		{'K',		0,	cmd_scroll_up,		X_UPDV},
 		{'V',		K_CTRL,	cmd_scroll_down,	X_UPDV},
