@@ -610,7 +610,7 @@ update_view()
 
 /* Show a message on the status bar. */
 static void __attribute__((format(printf, 2, 3)))
-message(enum color c, char *fmt, ...)
+message(enum color c, const char *fmt, ...)
 {
 	int len, pos;
 	va_list args;
