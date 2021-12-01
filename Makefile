@@ -26,4 +26,4 @@ uninstall:
 	rm -f $(MANDIR)/fm.1
 
 clean:
-	rm -f fm
+	rm -f fm *.o
