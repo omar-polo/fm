@@ -5,6 +5,7 @@
  - reworked various part of the code
    - misc improvements
    - use standard getopt(3)
+   - style(9)-ify the code
  - keybindings reworked
    - no more customizable via `config.h`
    - both vi and emacs friendly
