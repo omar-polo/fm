@@ -577,7 +577,7 @@ update_view()
 			if (ISLINK(j))
 				wcscat(WBUF, L"/");
 		} else {
-			char *suffix, *suffixes = "BKMGTPEZY";
+			const char *suffix, *suffixes = "BKMGTPEZY";
 			off_t human_size = ESIZE(j) * 10;
 			int length = mbstowcs(WBUF, ENAME(j), PATH_MAX);
 			int namecols = wcswidth(WBUF, length);
