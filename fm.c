@@ -129,6 +129,7 @@ static struct state {
 #define MAX(A, B)   ((A) > (B) ? (A) : (B))
 #define ISDIR(E)    (strchr((E), '/') != NULL)
 #define CTRL(x)     ((x) & 0x1f)
+#define nitems(a)   (sizeof(a)/sizeof(a[0]))
 
 /* Line Editing Macros. */
 #define EDIT_FULL(E)       ((E).left == (E).right)
@@ -393,23 +394,41 @@ get_user_programs()
 
 /* Do a fork-exec to external program (e.g. $EDITOR). */
 static void
-spawn(char **args)
+spawn(const char *argv0, ...)
 {
 	pid_t pid;
 	int status;
+	size_t i;
+	const char *argv[16], *last;
+	va_list ap;
 
-	setenv("RVSEL", fm.nfiles ? ENAME(ESEL) : "", 1);
-	pid = fork();
-	if (pid > 0) {
-		/* fork() succeeded. */
-		disable_handlers();
-		endwin();
+	va_start(ap, argv0);
+	argv[0] = argv0;
+	for (i = 1; i < nitems(argv); ++i) {
+		last = va_arg(ap, const char *);
+		if (last == NULL)
+			break;
+		argv[i] = last;
+	}
+	va_end(ap);
+
+	if (last != NULL)
+		abort();
+
+	disable_handlers();
+	endwin();
+
+	switch (pid = fork()) {
+	case -1:
+		quit("fork");
+	case 0: /* child */
+		setenv("RVSEL", fm.nfiles ? ENAME(ESEL) : "", 1);
+		execvp(argv[0], (char *const *)argv);
+		quit("execvp");
+	default:
 		waitpid(pid, &status, 0);
 		enable_handlers();
 		kill(getpid(), SIGWINCH);
-	} else if (pid == 0) {
-		/* Child process. */
-		execvp(args[0], args);
 	}
 }
 
@@ -446,9 +465,9 @@ open_with_env(char *program, char *path)
 		strncpy(BUF1, program, BUFLEN - 1);
 		strncat(BUF1, " ", BUFLEN - strlen(program) - 1);
 		shell_escaped_cat(BUF1, path, BUFLEN - strlen(program) - 2);
-		spawn((char *[]) { RV_SHELL, "-c", BUF1, NULL });
+		spawn(RV_SHELL, "-c", BUF1, NULL );
 #else
-		spawn((char *[]) { program, path, NULL });
+		spawn(program, path, NULL);
 #endif
 		return 1;
 	}
