@@ -1194,6 +1194,20 @@ cmd_man(void)
 }
 
 static void
+cmd_jump_top(void)
+{
+	if (fm.nfiles)
+		ESEL = 0;
+}
+
+static void
+cmd_jump_bottom(void)
+{
+	if (fm.nfiles)
+		ESEL = fm.nfiles - 1;
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1207,10 +1221,14 @@ loop(void)
 #define X_QUIT 2
 		int flags;
 	} bindings[] = {
+		{'<',		K_META,	cmd_jump_top,		X_UPDV},
+		{'>',		K_META,	cmd_jump_bottom,	X_UPDV},
 		{'?',		0,	cmd_man,		0},
+		{'G',		0,	cmd_jump_bottom,	X_UPDV},
 		{'J',		0,	cmd_scroll_down,	X_UPDV},
 		{'K',		0,	cmd_scroll_up,		X_UPDV},
 		{'V',		K_CTRL,	cmd_scroll_down,	X_UPDV},
+		{'g',		0,	cmd_jump_top,		X_UPDV},
 		{'g',		K_CTRL,	NULL,			X_UPDV},
 		{'j',		0,	cmd_down,		X_UPDV},
 		{'k',		0,	cmd_up,			X_UPDV},
