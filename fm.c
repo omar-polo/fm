@@ -298,7 +298,7 @@ handle_winch(int sig)
 }
 
 static void
-enable_handlers()
+enable_handlers(void)
 {
 	struct sigaction sa;
 
@@ -310,7 +310,7 @@ enable_handlers()
 }
 
 static void
-disable_handlers()
+disable_handlers(void)
 {
 	struct sigaction sa;
 
@@ -320,12 +320,12 @@ disable_handlers()
 	sigaction(SIGWINCH, &sa, NULL);
 }
 
-static void reload();
-static void update_view();
+static void reload(void);
+static void update_view(void);
 
 /* Handle any signals received since last call. */
 static void
-sync_signals()
+sync_signals(void)
 {
 	if (fm.pending_usr1) {
 		/* SIGUSR1 received: refresh directory listing. */
