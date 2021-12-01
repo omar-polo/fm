@@ -62,6 +62,29 @@ silently discarded.
 Tabs for wich an invalid path was assigned will also start at
 .Ev $HOME .
 By default tabs starts at the current working directory.
+.Sh KEYS
+These commands are currently recognized
+.Pq ^L refers to control-L and M-a to meta-a
+.Pp
+.Bl -tag -width 20m -compact
+.It ?
+Display
+.Nm
+manual page.
+.It J | ^V | page down
+Scroll down by one screen.
+.It K | M-v | page up
+Scroll up by one screen.
+.It ^G
+Do nothing.
+.It j | n | ^N
+Scroll down by one line.
+.It k | p | ^P
+Scroll up by one line.
+.It q
+Quit
+.Nm .
+.El
 .Sh SEE ALSO
 .Xr mc 1 ,
 .Xr nnn 1 ,
