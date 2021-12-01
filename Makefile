@@ -13,6 +13,8 @@ WARNS =			-Wall -Wextra -Wmissing-prototypes \
 			-Wstrict-prototypes -Wwrite-strings \
 			-Wno-unused-parameter -Wno-unused-function
 
+.PHONY: all install uninstall clean
+
 all: fm
 
 fm: fm.o
