@@ -1,6 +1,6 @@
 # Change Log
 
-## future 1.1
+## [1.1.0] - current
 
  - reworked various part of the code
    - misc improvements
