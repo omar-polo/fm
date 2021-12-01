@@ -1184,6 +1184,10 @@ loop(void)
 		case 'q':
 			return;
 
+		case '?':
+			spawn("man", "fm", NULL);
+			break;
+
 		default:
 			message(RED, "%s is undefined", keyname(ch));
 			refresh();
