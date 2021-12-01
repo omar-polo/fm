@@ -187,7 +187,7 @@ xrealloc(void *p, size_t size)
 {
 	void *d;
 
-	if ((d = realloc(d, size)) == NULL)
+	if ((d = realloc(p, size)) == NULL)
 		quit("realloc");
 	return d;
 }
