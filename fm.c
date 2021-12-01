@@ -609,7 +609,7 @@ update_view()
 }
 
 /* Show a message on the status bar. */
-static void
+static void __attribute__((format(printf, 2, 3)))
 message(enum color c, char *fmt, ...)
 {
 	int len, pos;
