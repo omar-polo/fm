@@ -8,12 +8,19 @@ INSTALL =		install
 INSTALL_PROGRAM =	${INSTALL} -m 0555
 INSTALL_MAN =		${INSTALL} -m 0444
 
+WARNS =			-Wall -Wextra -Wmissing-prototypes \
+			-Wstrict-prototypes -Wwrite-strings \
+			-Wno-unused-parameter
+
 all: fm
 
 fm: fm.o
 	${CC} ${CFLAGS} -o $@ fm.o ${LDFLAGS} ${LDLIBS}
 
 fm.o: fm.c config.h
+
+.c.o:
+	${CC} ${CFLAGS} ${WARNS} -c $< -o $@
 
 install: fm
 	mkdir -p ${BINDIR}
