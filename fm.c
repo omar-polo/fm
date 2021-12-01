@@ -151,7 +151,7 @@ typedef int (*PROCESS)(const char *path);
 #define __dead __attribute__((noreturn))
 #endif
 
-static inline __dead void *
+static inline __dead void
 quit(const char *reason)
 {
 	int saved_errno;
