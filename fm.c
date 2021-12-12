@@ -1297,10 +1297,12 @@ loop(void)
 		{'p',		K_CTRL,	cmd_up,			X_UPDV},
 		{'q',		0,	NULL,			X_QUIT},
 		{'v',		K_META,	cmd_scroll_up,		X_UPDV},
+		{KEY_DOWN,	0,	cmd_scroll_down,	X_UPDV},
 		{KEY_NPAGE,	0,	cmd_scroll_down,	X_UPDV},
 		{KEY_PPAGE,	0,	cmd_scroll_up,		X_UPDV},
 		{KEY_RESIZE,	0,	NULL,			X_UPDV},
 		{KEY_RESIZE,	K_META,	NULL,			X_UPDV},
+		{KEY_UP,	0,	cmd_scroll_up,		X_UPDV},
 	}, *b;
 	size_t i;
 
