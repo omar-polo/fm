@@ -482,7 +482,7 @@ init_term()
 {
 	setlocale(LC_ALL, "");
 	initscr();
-	cbreak(); /* Get one character at a time. */
+	raw();
 	timeout(100); /* For getch(). */
 	noecho();
 	nonl(); /* No NL->CR/NL on output. */
