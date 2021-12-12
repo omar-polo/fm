@@ -1382,6 +1382,9 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (pledge("stdio rpath wpath cpath tty proc exec", NULL) == -1)
+		err(1, "pledge");
+
 	get_user_programs();
 	init_term();
 	fm.nfiles = 0;
