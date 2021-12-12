@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <curses.h>
 #include <dirent.h>
@@ -34,12 +35,13 @@ struct option opts[] = {
 	{NULL,		0,		NULL,	0}
 };
 
+static char clipboard[PATH_MAX];
+
 /* String buffers. */
 #define BUFLEN  PATH_MAX
 static char BUF1[BUFLEN];
 static char BUF2[BUFLEN];
 static char INPUT[BUFLEN];
-static char CLIPBOARD[BUFLEN];
 static wchar_t WBUF[BUFLEN];
 
 /* Paths to external programs. */
@@ -1261,6 +1263,61 @@ cmd_home(void)
 }
 
 static void
+cmd_copy_path(void)
+{
+	const char *path;
+	FILE *f;
+
+	if ((path = getenv("CLIP")) == NULL ||
+	    (f = fopen(path, "w")) == NULL) {
+		/* use internal clipboard */
+		strlcpy(clipboard, CWD, sizeof(clipboard));
+		strlcat(clipboard, ENAME(ESEL), sizeof(clipboard));
+		return;
+	}
+
+	fprintf(f, "%s%s", CWD, ENAME(ESEL));
+	fputc('\0', f);
+	fclose(f);
+}
+
+static void
+cmd_paste_path(void)
+{
+	ssize_t r;
+	const char *path;
+	char *nl;
+	FILE *f;
+	char p[PATH_MAX];
+
+	if ((path = getenv("CLIP")) != NULL &&
+	    (f = fopen(path, "w")) != NULL) {
+		r = fread(clipboard, 1, sizeof(clipboard)-1, f);
+		fclose(f);
+		if (r == -1 || r == 0)
+			goto err;
+		if ((nl = memmem(clipboard, r, "", 1)) == NULL)
+			goto err;
+	}
+
+	strlcpy(p, clipboard, sizeof(p));
+	strlcpy(CWD, clipboard, sizeof(CWD));
+	if ((nl = strrchr(CWD, '/')) != NULL) {
+		*nl = '\0';
+		nl = strrchr(p, '/');
+		assert(nl != NULL);
+	}
+	if (strcmp(CWD, "/") != 0)
+		strlcat(CWD, "/", sizeof(CWD));
+	cd(1);
+	try_to_sel(nl+1);
+	return;
+
+err:
+	memset(clipboard, 0, sizeof(clipboard));
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1293,10 +1350,12 @@ loop(void)
 		{'k',		0,	cmd_up,			X_UPDV},
 		{'n',		0,	cmd_down,		X_UPDV},
 		{'n',		K_CTRL,	cmd_down,		X_UPDV},
+		{'P',		0,	cmd_paste_path,		X_UPDV},
 		{'p',		0,	cmd_up,			X_UPDV},
 		{'p',		K_CTRL,	cmd_up,			X_UPDV},
 		{'q',		0,	NULL,			X_QUIT},
 		{'v',		K_META,	cmd_scroll_up,		X_UPDV},
+		{'Y',		0,	cmd_copy_path,		X_UPDV},
 		{KEY_DOWN,	0,	cmd_scroll_down,	X_UPDV},
 		{KEY_NPAGE,	0,	cmd_scroll_down,	X_UPDV},
 		{KEY_PPAGE,	0,	cmd_scroll_up,		X_UPDV},
@@ -1410,9 +1469,9 @@ main(int argc, char *argv[])
 	fm.window = subwin(stdscr, LINES - 2, COLS, 1, 0);
 	init_marks(&fm.marks);
 	cd(1);
-	strcpy(CLIPBOARD, CWD);
+	strlcpy(clipboard, CWD, sizeof(clipboard));
 	if (fm.nfiles > 0)
-		strcat(CLIPBOARD, ENAME(ESEL));
+		strlcat(clipboard, ENAME(ESEL), sizeof(clipboard));
 
 	loop();
 
