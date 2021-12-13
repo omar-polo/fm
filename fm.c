@@ -39,6 +39,10 @@
 #define FM_ED "/bin/ed"
 #endif
 
+#ifndef FM_OPENER
+#define FM_OPENER "xdg-open"
+#endif
+
 #include "config.h"
 
 struct option opts[] = {
@@ -1374,6 +1378,58 @@ cmd_edit(void)
 }
 
 static void
+cmd_open(void)
+{
+	const char *opener;
+
+	if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
+		return;
+
+	if ((opener = getenv("OPENER")) == NULL)
+		opener = FM_OPENER;
+
+	spawn(opener, ENAME(ESEL), NULL);
+}
+
+static void
+cmd_mark(void)
+{
+	if (MARKED(ESEL))
+		del_mark(&fm.marks, ENAME(ESEL));
+	else
+		add_mark(&fm.marks, CWD, ENAME(ESEL));
+
+	MARKED(ESEL) = !MARKED(ESEL);
+	ESEL = (ESEL + 1) % fm.nfiles;
+}
+
+static void
+cmd_toggle_mark(void)
+{
+	int i;
+
+	for (i = 0; i < fm.nfiles; ++i) {
+		if (MARKED(i))
+			del_mark(&fm.marks, ENAME(i));
+		else
+			add_mark(&fm.marks, CWD, ENAME(ESEL));
+		MARKED(i) = !MARKED(i);
+	}
+}
+
+static void
+cmd_mark_all(void)
+{
+	int i;
+
+	for (i = 0; i < fm.nfiles; ++i)
+		if (!MARKED(i)) {
+			add_mark(&fm.marks, CWD, ENAME(ESEL));
+			MARKED(i) = 1;
+		}
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1394,6 +1450,7 @@ loop(void)
 		{'H',		0,	cmd_home,		X_UPDV},
 		{'J',		0,	cmd_scroll_down,	X_UPDV},
 		{'K',		0,	cmd_scroll_up,		X_UPDV},
+		{'M',		0,	cmd_mark_all,		X_UPDV},
 		{'P',		0,	cmd_paste_path,		X_UPDV},
 		{'V',		K_CTRL,	cmd_scroll_down,	X_UPDV},
 		{'Y',		0,	cmd_copy_path,		X_UPDV},
@@ -1410,10 +1467,13 @@ loop(void)
 		{'l',		K_CTRL,	cmd_reload,		X_UPDV},
 		{'n',		0,	cmd_down,		X_UPDV},
 		{'n',		K_CTRL,	cmd_down,		X_UPDV},
+		{'m',		0,	cmd_mark,		X_UPDV},
 		{'m',		K_CTRL,	cmd_shell,		X_UPDV},
+		{'o',		0,	cmd_open,		X_UPDV},
 		{'p',		0,	cmd_up,			X_UPDV},
 		{'p',		K_CTRL,	cmd_up,			X_UPDV},
 		{'q',		0,	NULL,			X_QUIT},
+		{'t',		0,	cmd_toggle_mark,	X_UPDV},
 		{'v',		0,	cmd_view,		X_UPDV},
 		{'v',		K_META,	cmd_scroll_up,		X_UPDV},
 		{KEY_DOWN,	0,	cmd_scroll_down,	X_UPDV},
