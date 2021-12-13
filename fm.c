@@ -27,6 +27,10 @@
 #include <wchar.h>
 #include <wctype.h>
 
+#ifndef FM_SHELL
+#define FM_SHELL "/bin/sh"
+#endif
+
 #include "config.h"
 
 struct option opts[] = {
@@ -1324,6 +1328,16 @@ cmd_reload(void)
 }
 
 static void
+cmd_shell(void)
+{
+	const char *shell;
+
+	if ((shell = getenv("SHELL")) == NULL)
+		shell = FM_SHELL;
+	spawn(shell, NULL);
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1359,6 +1373,7 @@ loop(void)
 		{'l',		K_CTRL,	cmd_reload,		X_UPDV},
 		{'n',		0,	cmd_down,		X_UPDV},
 		{'n',		K_CTRL,	cmd_down,		X_UPDV},
+		{'m',		K_CTRL,	cmd_shell,		X_UPDV},
 		{'p',		0,	cmd_up,			X_UPDV},
 		{'p',		K_CTRL,	cmd_up,			X_UPDV},
 		{'q',		0,	NULL,			X_QUIT},
