@@ -35,6 +35,10 @@
 #define FM_PAGER "/usr/bin/less"
 #endif
 
+#ifndef FM_ED
+#define FM_ED "/bin/ed"
+#endif
+
 #include "config.h"
 
 struct option opts[] = {
@@ -1355,6 +1359,21 @@ cmd_view(void)
 }
 
 static void
+cmd_edit(void)
+{
+	const char *editor;
+
+	if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
+		return;
+
+	if ((editor = getenv("VISUAL")) == NULL ||
+	    (editor = getenv("EDITOR")) == NULL)
+		editor = FM_ED;
+
+	spawn(editor, ENAME(ESEL), NULL);
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1380,6 +1399,7 @@ loop(void)
 		{'Y',		0,	cmd_copy_path,		X_UPDV},
 		{'^',		0,	cmd_cd_up,		X_UPDV},
 		{'b',		0,	cmd_cd_up,		X_UPDV},
+		{'e',		0,	cmd_edit,		X_UPDV},
 		{'f',		0,	cmd_cd_down,		X_UPDV},
 		{'g',		0,	cmd_jump_top,		X_UPDV},
 		{'g',		K_CTRL,	NULL,			X_UPDV},
