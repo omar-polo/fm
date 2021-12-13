@@ -31,6 +31,10 @@
 #define FM_SHELL "/bin/sh"
 #endif
 
+#ifndef FM_PAGER
+#define FM_PAGER "/usr/bin/less"
+#endif
+
 #include "config.h"
 
 struct option opts[] = {
@@ -1338,6 +1342,19 @@ cmd_shell(void)
 }
 
 static void
+cmd_view(void)
+{
+	const char *pager;
+
+	if (!fm.nfiles || S_ISDIR(EMODE(ESEL)))
+		return;
+
+	if ((pager = getenv("PAGER")) == NULL)
+		pager = FM_PAGER;
+	spawn(pager, ENAME(ESEL), NULL);
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1377,6 +1394,7 @@ loop(void)
 		{'p',		0,	cmd_up,			X_UPDV},
 		{'p',		K_CTRL,	cmd_up,			X_UPDV},
 		{'q',		0,	NULL,			X_QUIT},
+		{'v',		0,	cmd_view,		X_UPDV},
 		{'v',		K_META,	cmd_scroll_up,		X_UPDV},
 		{KEY_DOWN,	0,	cmd_scroll_down,	X_UPDV},
 		{KEY_NPAGE,	0,	cmd_scroll_down,	X_UPDV},
