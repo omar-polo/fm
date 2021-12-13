@@ -984,7 +984,6 @@ delfile(const char *path)
 	return unlink(path);
 }
 
-static PROCESS deldir = rmdir;
 static int
 addfile(const char *path)
 {
@@ -1527,15 +1526,10 @@ int
 main(int argc, char *argv[])
 {
 	int i, ch;
-	char *program;
 	char *entry;
-	const char *key;
-	const char *clip_path;
 	DIR *d;
-	enum editstate edit_stat;
 	FILE *save_cwd_file = NULL;
 	FILE *save_marks_file = NULL;
-	FILE *clip_file;
 
 	while ((ch = getopt_long(argc, argv, "d:hm:v", opts, NULL)) != -1) {
 		switch (ch) {
