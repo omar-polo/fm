@@ -1318,6 +1318,12 @@ err:
 }
 
 static void
+cmd_reload(void)
+{
+	reload();
+}
+
+static void
 loop(void)
 {
 	int meta, ch, c;
@@ -1335,6 +1341,7 @@ loop(void)
 		{'h',		0,	cmd_cd_up,		X_UPDV},
 		{'b',		0,	cmd_cd_up,		X_UPDV},
 		{'l',		0,	cmd_cd_down,		X_UPDV},
+		{'l',		K_CTRL,	cmd_reload,		X_UPDV},
 		{'f',		0,	cmd_cd_down,		X_UPDV},
 		{'<',		K_META,	cmd_jump_top,		X_UPDV},
 		{'>',		K_META,	cmd_jump_bottom,	X_UPDV},
