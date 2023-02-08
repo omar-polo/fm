@@ -1556,6 +1556,8 @@ main(int argc, char *argv[])
 		case 'v':
 			printf("version: fm %s\n", RV_VERSION);
 			return 0;
+		default:
+			usage();
 		}
 	}
 
