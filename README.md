@@ -10,21 +10,23 @@ fm has vi-like key bindings for navigation and can open files in
 implemented (see fm(1) for details).  fm is designed to be simple,
 fast and portable.
 
-fm was forked from [Rover](https://github.com/lecram/rover).
+fm was forked from [Rover](https://github.com/lecram/rover) and is still
+heavily a work in progress.  Lots of features were removed that need to
+be reimplemented and more need to be fixed.
 
 Quick Start
 ===========
 
 Building and Installing:
-```
-$ make
-$ sudo make install
-```
+
+	$ make
+	$ doas make install
+
 
 Running:
-```
-$ fm [DIR1 [DIR2 [DIR3 [...]]]]
-```
+
+	$ fm [dir ...]
+
 
 Please read fm(1) for more information.
 
