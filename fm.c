@@ -731,7 +731,7 @@ ls(struct row **rowsp, uint8_t flags)
 		return 0;
 	}
 	rewinddir(dp);
-	rows = xmalloc(n * sizeof(*rows));
+	rows = xcalloc(n, sizeof(*rows));
 	i = 0;
 	while ((ep = readdir(dp))) {
 		if (!strcmp(ep->d_name, ".") || !strcmp(ep->d_name, ".."))
