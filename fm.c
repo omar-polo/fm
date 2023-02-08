@@ -183,16 +183,6 @@ quit(const char *reason)
 }
 
 static inline void *
-xmalloc(size_t size)
-{
-	void *d;
-
-	if ((d = malloc(size)) == NULL)
-		quit("malloc");
-	return d;
-}
-
-static inline void *
 xcalloc(size_t nmemb, size_t size)
 {
 	void *d;
