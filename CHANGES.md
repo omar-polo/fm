@@ -12,7 +12,7 @@
    - both vi and emacs friendly
  - print a message when an undefined key is used
  - manpage rewritten in mandoc
- - makefile is now in portable make
+ - makefile is now in portable make; add `install-local' target
 
 # Rover history
 

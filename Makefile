@@ -31,6 +31,9 @@ install: fm
 	mkdir -p ${MANDIR}
 	${INSTALL_MAN} fm.1 ${MANDIR}/fm.1
 
+install-local: fm
+	${INSTALL_PROGRAM} fm ~/bin/
+
 uninstall:
 	rm -f ${BINDIR}/fm
 	rm -f ${MANDIR}/fm.1
