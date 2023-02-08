@@ -1,3 +1,9 @@
+/*
+ * fm.c was written by Omar Polo <op@omarpolo.com>, based on the work
+ * of Marcel Rodrigues, and is placed in the public domain.  The author
+ * hereby disclaims copyright to this source code.
+ */
+
 /* needed for some ncurses stuff */
 #define _XOPEN_SOURCE_EXTENDED
 #define _FILE_OFFSET_BITS   64
