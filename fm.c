@@ -212,10 +212,35 @@ xrealloc(void *p, size_t size)
 	return d;
 }
 
+static inline int
+xasprintf(char **ret, const char *fmt, ...)
+{
+	va_list ap;
+	int r;
+
+	va_start(ap, fmt);
+	r = vasprintf(ret, fmt, ap);
+	va_end(ap);
+
+	if (r == -1)
+		quit("asprintf");
+	return r;
+}
+
+static inline char *
+xstrdup(char *str)
+{
+	char *s;
+
+	if ((s = strdup(str)) == NULL)
+		quit("strdup");
+	return s;
+}
+
 static void
 init_marks(struct marks *marks)
 {
-	strcpy(marks->dirpath, "");
+	strlcpy(marks->dirpath, "", sizeof(marks->dirpath));
 	marks->bulk = BULK_INIT;
 	marks->nentries = 0;
 	marks->entries = xcalloc(marks->bulk, sizeof(*marks->entries));
@@ -227,7 +252,7 @@ mark_none(struct marks *marks)
 {
 	int i;
 
-	strcpy(marks->dirpath, "");
+	strlcpy(marks->dirpath, "", sizeof(marks->dirpath));
 	for (i = 0; i < marks->bulk && marks->nentries; i++)
 		if (marks->entries[i]) {
 			free(marks->entries[i]);
@@ -267,11 +292,10 @@ add_mark(struct marks *marks, char *dirpath, char *entry)
 	} else {
 		/* Directory changed. Discard old marks. */
 		mark_none(marks);
-		strcpy(marks->dirpath, dirpath);
+		strlcpy(marks->dirpath, dirpath, sizeof(marks->dirpath));
 		i = 0;
 	}
-	marks->entries[i] = xmalloc(strlen(entry) + 1);
-	strcpy(marks->entries[i], entry);
+	marks->entries[i] = xstrdup(entry);
 	marks->nentries++;
 }
 
@@ -462,7 +486,7 @@ shell_escaped_cat(char *buf, char *str, size_t n)
 		case '\'':
 			if (n < 4)
 				goto done;
-			strcpy(p, "'\\''");
+			strlcpy(p, "'\\''", n);
 			n -= 4;
 			p += 4;
 			break;
@@ -593,7 +617,7 @@ update_view()
 		if (S_ISDIR(EMODE(j))) {
 			mbstowcs(WBUF, ENAME(j), PATH_MAX);
 			if (ISLINK(j))
-				wcscat(WBUF, L"/");
+				wcslcat(WBUF, L"/", sizeof(WBUF));
 		} else {
 			const char *suffix, *suffixes = "BKMGTPEZY";
 			off_t human_size = ESIZE(j) * 10;
@@ -639,7 +663,7 @@ update_view()
 	BUF1[1] = FLAGS & SHOW_DIRS ? 'D' : ' ';
 	BUF1[2] = FLAGS & SHOW_HIDDEN ? 'H' : ' ';
 	if (!fm.nfiles)
-		strcpy(BUF2, "0/0");
+		strlcpy(BUF2, "0/0", sizeof(BUF2));
 	else
 		snprintf(BUF2, BUFLEN, "%d/%d", ESEL + 1, fm.nfiles);
 	snprintf(BUF1 + 3, BUFLEN - 3, "%12s", BUF2);
@@ -719,16 +743,13 @@ ls(struct row **rowsp, uint8_t flags)
 		stat(ep->d_name, &statbuf);
 		if (S_ISDIR(statbuf.st_mode)) {
 			if (flags & SHOW_DIRS) {
-				rows[i].name = xmalloc(strlen(ep->d_name) + 2);
-				strcpy(rows[i].name, ep->d_name);
-				if (!rows[i].islink)
-					strcat(rows[i].name, "/");
+				xasprintf(&rows[i].name, "%s%s",
+				    ep->d_name, rows[i].islink ? "" : "/");
 				rows[i].mode = statbuf.st_mode;
 				i++;
 			}
 		} else if (flags & SHOW_FILES) {
-			rows[i].name = xmalloc(strlen(ep->d_name) + 1);
-			strcpy(rows[i].name, ep->d_name);
+			rows[i].name = xstrdup(ep->d_name);
 			rows[i].size = statbuf.st_size;
 			rows[i].mode = statbuf.st_mode;
 			i++;
@@ -763,7 +784,7 @@ cd(int reset)
 	if (chdir(CWD) == -1) {
 		getcwd(CWD, PATH_MAX - 1);
 		if (CWD[strlen(CWD) - 1] != '/')
-			strcat(CWD, "/");
+			strlcat(CWD, "/", sizeof(CWD));
 		goto done;
 	}
 	if (reset)
@@ -804,7 +825,7 @@ static void
 reload()
 {
 	if (fm.nfiles) {
-		strcpy(INPUT, ENAME(ESEL));
+		strlcpy(INPUT, ENAME(ESEL), sizeof(INPUT));
 		cd(0);
 		try_to_sel(INPUT);
 		update_view();
@@ -830,7 +851,7 @@ count_dir(const char *path)
 		snprintf(subpath, PATH_MAX, "%s%s", path, ep->d_name);
 		lstat(subpath, &statbuf);
 		if (S_ISDIR(statbuf.st_mode)) {
-			strcat(subpath, "/");
+			strlcat(subpath, "/", sizeof(subpath));
 			total += count_dir(subpath);
 		} else
 			total += statbuf.st_size;
@@ -874,7 +895,7 @@ count_marked()
  * 4. call pos(source).
  *
  * E.g. to move directory /src/ (and all its contents) inside /dst/:
- * strcpy(CWD, "/dst/");
+ * strlcpy(CWD, "/dst/", sizeof(CWD));
  * process_dir(adddir, movfile, deldir, "/src/");
  */
 static int
@@ -889,8 +910,9 @@ process_dir(PROCESS pre, PROCESS proc, PROCESS pos, const char *path)
 	ret = 0;
 	if (pre) {
 		char dstpath[PATH_MAX];
-		strcpy(dstpath, CWD);
-		strcat(dstpath, path + strlen(fm . marks . dirpath));
+		strlcpy(dstpath, CWD, sizeof(dstpath));
+		strlcat(dstpath, path + strlen(fm.marks.dirpath),
+		    sizeof(dstpath));
 		ret |= pre(dstpath);
 	}
 	if (!(dp = opendir(path)))
@@ -1005,8 +1027,8 @@ cpyfile(const char *srcpath)
 	char buf[BUFSIZ];
 	char dstpath[PATH_MAX];
 
-	strcpy(dstpath, CWD);
-	strcat(dstpath, srcpath + strlen(fm.marks.dirpath));
+	strlcpy(dstpath, CWD, sizeof(dstpath));
+	strlcat(dstpath, srcpath + strlen(fm.marks.dirpath), sizeof(dstpath));
 	ret = lstat(srcpath, &st);
 	if (ret < 0)
 		return ret;
@@ -1054,8 +1076,8 @@ movfile(const char *srcpath)
 	struct stat st;
 	char dstpath[PATH_MAX];
 
-	strcpy(dstpath, CWD);
-	strcat(dstpath, srcpath + strlen(fm.marks.dirpath));
+	strlcpy(dstpath, CWD, sizeof(dstpath));
+	strlcat(dstpath, srcpath + strlen(fm.marks.dirpath), sizeof(dstpath));
 	ret = rename(srcpath, dstpath);
 	if (ret == 0) {
 		ret = lstat(dstpath, &st);
@@ -1571,20 +1593,23 @@ main(int argc, char *argv[])
 		fm.tabs[i].esel = fm.tabs[i].scroll = 0;
 		fm.tabs[i].flags = RV_FLAGS;
 	}
-	strcpy(fm.tabs[0].cwd, getenv("HOME"));
+	strlcpy(fm.tabs[0].cwd, getenv("HOME"), sizeof(fm.tabs[0].cwd));
 	for (i = 1; i < argc && i < 10; i++) {
 		if ((d = opendir(argv[i]))) {
 			realpath(argv[i], fm.tabs[i].cwd);
 			closedir(d);
-		} else
-			strcpy(fm.tabs[i].cwd, fm.tabs[0].cwd);
+		} else {
+			strlcpy(fm.tabs[i].cwd, fm.tabs[0].cwd,
+			    sizeof(fm.tabs[i].cwd));
+		}
 	}
 	getcwd(fm.tabs[i].cwd, PATH_MAX);
 	for (i++; i < 10; i++)
-		strcpy(fm.tabs[i].cwd, fm.tabs[i - 1].cwd);
+		strlcpy(fm.tabs[i].cwd, fm.tabs[i - 1].cwd,
+		    sizeof(fm.tabs[i].cwd));
 	for (i = 0; i < 10; i++)
 		if (fm.tabs[i].cwd[strlen(fm.tabs[i].cwd) - 1] != '/')
-			strcat(fm.tabs[i].cwd, "/");
+			strlcat(fm.tabs[i].cwd, "/", sizeof(fm.tabs[i].cwd));
 	fm.tab = 1;
 	fm.window = subwin(stdscr, LINES - 2, COLS, 1, 0);
 	init_marks(&fm.marks);
