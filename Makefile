@@ -8,7 +8,7 @@ INSTALL =		install
 INSTALL_PROGRAM =	${INSTALL} -m 0555
 INSTALL_MAN =		${INSTALL} -m 0444
 
-#DEBUG =			-O0 -g
+DEBUG =			-O0 -g
 WARNS =			-Wall -Wextra -Wmissing-prototypes \
 			-Wstrict-prototypes -Wwrite-strings \
 			-Wno-unused-parameter -Wno-unused-function
