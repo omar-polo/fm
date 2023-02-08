@@ -1522,6 +1522,15 @@ loop(void)
 	}
 }
 
+static __dead void
+usage(void)
+{
+	fprintf(stderr, "usage: %s [-hv] [-d file] [-m file] [dirs ...]\n",
+	    getprogname());
+	fprintf(stderr, "version: %s\n", RV_VERSION);
+	exit(1);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1538,13 +1547,8 @@ main(int argc, char *argv[])
 				err(1, "open %s", optarg);
 			break;
 		case 'h':
-                        printf(""
-			    "Usage: fm [-hv] [-d file] [-m file] [dirs...]\n"
-			    "Browse current directory or the ones specified.\n"
-			    "\n"
-			    "See fm(1) for more information.\n"
-			    "fm homepage <https://github.com/omar-polo/fm>\n");
-			return 0;
+			usage();
+			break;
 		case 'm':
 			if ((save_marks_file = fopen(optarg, "a")) == NULL)
 				err(1, "open %s", optarg);
