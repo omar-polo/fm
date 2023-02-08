@@ -1540,6 +1540,9 @@ main(int argc, char *argv[])
 	FILE *save_cwd_file = NULL;
 	FILE *save_marks_file = NULL;
 
+	if (pledge("stdio rpath wpath cpath tty proc exec", NULL) == -1)
+		err(1, "pledge");
+
 	while ((ch = getopt_long(argc, argv, "d:hm:v", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'd':
@@ -1560,9 +1563,6 @@ main(int argc, char *argv[])
 			usage();
 		}
 	}
-
-	if (pledge("stdio rpath wpath cpath tty proc exec", NULL) == -1)
-		err(1, "pledge");
 
 	get_user_programs();
 	init_term();
